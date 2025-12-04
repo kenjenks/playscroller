@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<!-- DANGER! WARNING! THEATER! app for scrolling through PDF files synched with the Stage Manager -->
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Actor App (Mirror)</title>
+    <!-- Tailwind CSS for mobile-first, responsive design -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body { font-family: 'Inter', sans-serif; background-color: #f7f7f7; }
+        /* Style for the PDF canvas container */
+        #pdf-container {
+            width: 100%;
+            max-width: 800px;
+            margin: 0 auto;
+            border: 2px solid #065f46; /* Green border for the actor view */
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            background-color: white;
+            overflow-y: scroll; /* Allows for local smooth scrolling by the app */
+            height: 90vh; /* Takes up most of the viewport */
+        }
+        canvas {
+            display: block;
+            margin: 0 auto;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+            margin-bottom: 16px; /* Space between pages */
+        }
+    </style>
+    <!-- PDF.js library -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.11.338/pdf.min.js"></script>
+</head>
+<body class="p-4">
+
+    <div id="main-ui" class="max-w-4xl mx-auto space-y-4">
+
+        <h1 class="text-2xl font-bold text-gray-800 flex items-center">
+            <svg class="w-6 h-6 mr-2 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.55 4.55a2 2 0 010 2.83l-4.55 4.55a2 2 0 01-2.83 0l-4.55-4.55a2 2 0 010-2.83l4.55-4.55a2 2 0 012.83 0zM15 10V4a2 2 0 00-2-2H4a2 2 0 00-2 2v10a2 2 0 002 2h4l1.5-1.5z"></path></svg>
+            Actor Script View
+        </h1>
+        <div id="status-bar" class="bg-green-100 p-2 rounded-lg text-sm text-green-800">
+            <span id="connection-status" class="font-semibold">Connecting...</span>
+            | Session ID: <span id="session-id-display" class="font-mono text-xs">N/A</span>
+            | SM ID: <span id="sm-id-display" class="font-mono text-xs">N/A</span>
+        </div>
+
+        <!-- PDF Viewer -->
+        <div id="viewer-panel" class="bg-white rounded-xl shadow-lg">
+            <div id="pdf-container">
+                <!-- PDF Canvases will be rendered here -->
+                <p id="loading-message" class="text-center py-12 text-gray-500">Waiting for connection parameters...</p>
+            </div>
+        </div>
+
+        <!-- Utility for error/message modal (Non-alert) -->
+        <div id="modal" class="fixed inset-0 bg-gray-600 bg-opacity-50 hidden items-center justify-center">
+            <div class="bg-white p-6 rounded-lg shadow-xl max-w-sm w-full">
+                <h3 id="modal-title" class="text-xl font-bold mb-4 text-red-600">Error</h3>
+                <p id="modal-message" class="text-gray-700 mb-6"></p>
+                <button onclick="closeModal()" class="w-full py-2 bg-green-600 text-white rounded-lg hover:bg-green-700">Close</button>
+            </div>
+        </div>
+
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, onSnapshot } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { setLogLevel } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // setLogLevel('debug'); // Uncomment to debug Firestore
+
+        // --- Global Firebase Variables ---
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'play-scroller-actor';
+        const firebaseConfig = JSON.parse(typeof __firebase_config !== 'undefined' ? __firebase_config : '{}');
+        const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+
+        let db, auth, userId;
+        let pdfDoc = null;
+        let pdfContainer;
+        let currentSessionId = null;
+        let isSyncing = false; // Flag to prevent infinite scroll loop
+
+        // Ensure PDF.js worker is set up
+        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.11.338/pdf.worker.min.js';
+
+        // Helper function for modal display (instead of alert)
+        window.showModal = (title, message, isError = true) => {
+            const modal = document.getElementById('modal');
+            document.getElementById('modal-title').textContent = title;
+            document.getElementById('modal-message').textContent = message;
+            document.getElementById('modal-title').className = isError ? 'text-xl font-bold mb-4 text-red-600' : 'text-xl font-bold mb-4 text-green-600';
+            modal.style.display = 'flex';
+        };
+
+        window.closeModal = () => {
+            document.getElementById('modal').style.display = 'none';
+        };
+
+        // --- Core App Initialization ---
+        async function initializeFirebase() {
+            try {
+                if (Object.keys(firebaseConfig).length === 0) {
+                     showModal('Configuration Error', 'Firebase configuration is missing. Cannot initialize real-time features.', true);
+                     return;
+                }
+                const app = initializeApp(firebaseConfig);
+                db = getFirestore(app);
+                auth = getAuth(app);
+
+                // Authenticate user
+                if (initialAuthToken) {
+                    await signInWithCustomToken(auth, initialAuthToken);
+                } else {
+                    await signInAnonymously(auth);
+                }
+
+                userId = auth.currentUser?.uid || crypto.randomUUID();
+                
+                // Once Firebase is ready, start the main logic
+                extractAndStart();
+
+            } catch (error) {
+                console.error("Firebase initialization failed:", error);
+                showModal('Initialization Failed', `Could not initialize Firebase: ${error.message}`, true);
+            }
+        }
+
+        // --- PDF Rendering Functions ---
+
+        async function renderPage(pageNumber, pdfPage) {
+            const viewport = pdfPage.getViewport({ scale: 1.5 });
+            const canvas = document.createElement('canvas');
+            const context = canvas.getContext('2d');
+            canvas.height = viewport.height;
+            canvas.width = viewport.width;
+            canvas.id = `pdf-page-${pageNumber}`;
+            canvas.setAttribute('data-page', pageNumber);
+
+            await pdfPage.render({ canvasContext: context, viewport: viewport }).promise;
+            pdfContainer.appendChild(canvas);
+        }
+
+        async function loadAndRenderPDF(pdfUrl) {
+            document.getElementById('pdf-container').innerHTML = '<p id="loading-message" class="text-center py-12 text-gray-500">Downloading and rendering script...</p>';
+            try {
+                const pdf = await pdfjsLib.getDocument(pdfUrl).promise;
+                pdfDoc = pdf;
+                document.getElementById('pdf-container').innerHTML = ''; // Clear loading message
+
+                // Render all pages
+                for (let i = 1; i <= pdf.numPages; i++) {
+                    const page = await pdf.getPage(i);
+                    await renderPage(i, page);
+                }
+
+                document.getElementById('connection-status').textContent = 'PDF Loaded. Waiting for SM sync...';
+
+            } catch (error) {
+                console.error("PDF Loading Error:", error);
+                showModal('PDF Loading Error', `Could not load PDF. Check the URL and CORS settings. ${error.message}`, true);
+                document.getElementById('pdf-container').innerHTML = '<p id="loading-message" class="text-center py-12 text-red-500">PDF loading failed.</p>';
+                pdfDoc = null; // Reset document
+            }
+        }
+        
+        // --- Synchronization Logic ---
+
+        function mirrorScrollState(state) {
+            if (!pdfContainer || !pdfDoc) return;
+
+            const targetPage = state.page;
+            const yPercent = state.y_percent;
+
+            const targetCanvas = document.getElementById(`pdf-page-${targetPage}`);
+            if (!targetCanvas) {
+                console.warn(`Target page ${targetPage} not found.`);
+                return;
+            }
+
+            const pageHeight = targetCanvas.offsetHeight;
+            const pageTop = targetCanvas.offsetTop;
+            
+            // Calculate the scroll position within the current page
+            const scrollInPage = (yPercent / 100) * pageHeight;
+            
+            // The final scroll position is the top of the target page plus the scroll amount within that page
+            const targetScrollTop = pageTop + scrollInPage;
+
+            // Set flag to prevent this scroll from triggering a broadcast if this was the SM app
+            isSyncing = true;
+            
+            // Use smooth scrolling for a better user experience
+            pdfContainer.scrollTo({
+                top: targetScrollTop,
+                behavior: 'smooth'
+            });
+
+            // Reset flag after a short delay (longer than the smooth scroll duration)
+            setTimeout(() => {
+                isSyncing = false;
+            }, 500);
+            
+            document.getElementById('connection-status').textContent = `Synced to Page ${targetPage} @ ${yPercent.toFixed(0)}%`;
+        }
+
+
+        // --- Main Execution Flow ---
+
+        function extractAndStart() {
+            const urlParams = new URLSearchParams(window.location.search);
+            currentSessionId = urlParams.get('session_id');
+            const pdfUrl = urlParams.get('pdf_url');
+
+            if (!currentSessionId || !pdfUrl) {
+                document.getElementById('loading-message').textContent = 'Error: Missing Session ID or PDF URL in launch link.';
+                showModal('Connection Error', 'This app must be launched by scanning the Stage Manager\'s QR code. Missing `session_id` or `pdf_url` parameters.', true);
+                return;
+            }
+
+            // 1. Update initial UI
+            document.getElementById('session-id-display').textContent = currentSessionId;
+            document.getElementById('connection-status').textContent = 'Connected. Downloading script...';
+
+            // 2. Download and render PDF
+            loadAndRenderPDF(pdfUrl);
+
+            // 3. Subscribe to real-time updates
+            if (db) {
+                const sessionRef = doc(db, `artifacts/${appId}/public/data/sessions`, currentSessionId);
+                
+                onSnapshot(sessionRef, (docSnapshot) => {
+                    if (docSnapshot.exists()) {
+                        const data = docSnapshot.data();
+                        
+                        // Display SM ID once received
+                        if (data.sm_id) {
+                            document.getElementById('sm-id-display').textContent = data.sm_id;
+                        }
+
+                        // Only mirror if the PDF is loaded
+                        if (pdfDoc) {
+                            mirrorScrollState(data);
+                        }
+
+                    } else {
+                        document.getElementById('connection-status').textContent = 'Session Not Found or Ended.';
+                        showModal('Session Ended', `The Stage Manager session "${currentSessionId}" appears to have ended.`, true);
+                    }
+                }, (error) => {
+                    console.error("Firestore Subscription Error:", error);
+                    document.getElementById('connection-status').textContent = 'Connection Error.';
+                    showModal('Real-Time Error', `Failed to subscribe to session updates: ${error.message}`, true);
+                });
+            }
+        }
+
+        // --- Initial Setup ---
+        document.addEventListener('DOMContentLoaded', () => {
+            pdfContainer = document.getElementById('pdf-container');
+            initializeFirebase();
+        });
+
+    </script>
+</body>
+</html>
