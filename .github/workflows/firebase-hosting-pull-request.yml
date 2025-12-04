@@ -16,5 +16,6 @@ jobs:
       - uses: FirebaseExtended/action-hosting-deploy@v0
         with:
           repoToken: ${{ secrets.GITHUB_TOKEN }}
-          firebaseServiceAccount: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_PLAYSCROLLER_DWT }}
-          projectId: playscroller-dwt
+          firebaseServiceAccount: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_PLAYSCROLLER }}
+          projectId: playscroller
+          entryPoint: '.'
