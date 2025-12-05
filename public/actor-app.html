@@ -132,9 +132,12 @@
         /* --- Custom highlight styling --- */
         .highlight {
             position: absolute;
-            background-color: rgba(255, 255, 0, 0.5); /* Semi-transparent yellow */
+            background-color: rgba(255, 255, 0, 0.4); /* Semi-transparent yellow */
+            border: 1px solid rgba(255, 200, 0, 0.8);
+            border-radius: 2px;
             pointer-events: none; /* Allow interaction with elements beneath */
-            /* Z-index is handled by its parent .highlight-overlay */
+            z-index: 10;
+            mix-blend-mode: multiply; /* Better blending with text */
         }
 
         /* --- Modal for Highlight Input --- */
@@ -156,20 +159,18 @@
             z-index: 1001; /* Above everything */
         }
 
-        /* Make highlight VERY visible */
-        .highlight {
-            position: absolute;
-            background-color: rgba(255, 0, 0, 0.7) !important; /* Bright red */
-            border: 3px solid black !important;
-            pointer-events: none;
-            z-index: 100;
-            color: white !important;
-            font-size: 20px;
-            font-weight: bold;
-            text-align: center;
-            display: flex;
-            align-items: center;
-            justify-content: center;
+        /* Loading indicator for highlight search */
+        .highlight-loading {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0, 0, 0, 0.8);
+            color: white;
+            padding: 20px;
+            border-radius: 10px;
+            z-index: 10000;
+            display: none;
         }
     </style>
     <!-- PDF.js library -->
@@ -200,8 +201,8 @@
             </svg>
         </button>
         <ul>
-            <li><button id="highlight-menu-item" onclick="window.handleHighlightClick()">Highlight...</button></li>
-            <li><button onclick="window.testHighlight()">Test Highlight</button></li>
+            <li><button id="highlight-menu-item" onclick="window.handleHighlightClick()">Highlight Text...</button></li>
+            <li><button onclick="window.highlightAudience()">Highlight "AUDIENCE"</button></li>
             <li><button id="exit-menu-item" onclick="window.exitApp()">Exit</button></li>
         </ul>
     </div>
@@ -327,10 +328,12 @@
             window.showModal(`Debug: ${title}`, infoText, false);
         };
 
-        window.testHighlight = () => {
+        // Function to highlight "AUDIENCE" specifically
+        window.highlightAudience = () => {
             window.toggleMenu(); // Close menu
-            window.showDebugMessage("Manual highlight test triggered", 'info');
-            renderHighlights();
+            activeHighlightText = "AUDIENCE";
+            window.showDebugMessage(`Highlighting "${activeHighlightText}"...`, 'info');
+            renderHighlightsForText(activeHighlightText);
         };
 
         // --- UI Utility Functions ---
@@ -387,18 +390,32 @@
             menuButton.style.display = sideMenu.classList.contains('open') ? 'none' : 'block';
         };
 
+        // Helper function to clean search text
+        function cleanSearchText(text) {
+            // Remove spaces from the beginning and end
+            let cleaned = text.trim();
+            // Remove ALL spaces from the text (including internal spaces)
+            cleaned = cleaned.replace(/\s+/g, '');
+            window.showDebugMessage(`Cleaned search text: "${text}" -> "${cleaned}"`, 'info');
+            return cleaned;
+        }
+
         window.handleHighlightClick = () => {
             window.toggleMenu(); // Close the side menu
-            window.showModal('Highlight Text', 'Enter text to highlight across the script:', false, true,
+            window.showModal('Highlight Text',
+                'Enter text to highlight across the script:\n\nNote: Spaces will be ignored in the search.',
+                false, true,
                 (text) => {
-                    activeHighlightText = text.trim();
-                    // If text is cleared, remove highlights; otherwise, re-render
-                    if (activeHighlightText === "") {
+                    if (!text || text.trim() === "") {
+                        activeHighlightText = "";
                         document.querySelectorAll('.highlight').forEach(el => el.remove());
                         window.showDebugMessage("Cleared all highlights", 'info');
+                        window.showModal('Highlights Cleared', 'All highlights have been removed from the script.', false);
                     } else {
-                        window.showDebugMessage(`Setting highlight text: "${activeHighlightText}"`, 'info');
-                        renderHighlights(); // Re-render all pages with new highlight
+                        // Clean the search text (remove all spaces)
+                        activeHighlightText = cleanSearchText(text);
+                        window.showDebugMessage(`Searching for: "${activeHighlightText}" (case-insensitive)`, 'info');
+                        renderHighlightsForText(activeHighlightText);
                     }
                 },
                 () => {
@@ -518,15 +535,6 @@
                     await renderPage(i, page);
                 }
 
-                // After rendering all pages, apply initial highlights
-                renderHighlights();
-
-                // DEBUG: Force highlights after a short delay
-                setTimeout(() => {
-                    window.showDebugMessage("Forcing highlight test after delay", 'info');
-                    renderHighlights();
-                }, 2000);
-
                 // Initial scroll to top
                 pdfViewerWrapper.scrollTop = 0;
 
@@ -538,104 +546,132 @@
             }
         }
 
-        // --- Highlighting Logic (TEMPORARY STATIC TEST V2 - with Highlight Overlay) ---
-        async function renderHighlights() {
+        // --- Highlighting Logic ---
+        async function renderHighlightsForText(searchText) {
             // Clear all existing highlights before re-rendering
             document.querySelectorAll('.highlight').forEach(el => el.remove());
 
-            window.showDebugMessage("Starting highlight test...", 'info');
+            // Show loading indicator
+            const loadingIndicator = document.createElement('div');
+            loadingIndicator.className = 'highlight-loading';
+            loadingIndicator.textContent = `Searching for "${searchText}"...`;
+            loadingIndicator.style.display = 'block';
+            document.body.appendChild(loadingIndicator);
+
+            window.showDebugMessage(`Searching for "${searchText}" in PDF (case-insensitive, spaces ignored)...`, 'info');
 
             if (!pdfDoc) {
                 window.showDebugMessage("No PDF document loaded", 'error');
+                if (loadingIndicator.parentNode) {
+                    loadingIndicator.parentNode.removeChild(loadingIndicator);
+                }
                 return;
             }
 
-            // --- TEMPORARY TEST: Debug what overlays exist ---
-            const allOverlays = document.querySelectorAll('.highlight-overlay');
-            window.showDebugMessage(`Found ${allOverlays.length} overlay(s)`, 'info');
+            // Prepare search text: case-insensitive and clean
+            const searchTextLower = searchText.toLowerCase();
+            let totalHighlights = 0;
+            let totalMatches = 0;
 
-            // Show overlay info in debug panel
-            allOverlays.forEach((overlay, index) => {
-                window.showDebugMessage(`Overlay ${index + 1}: ${overlay.id} (${overlay.offsetWidth}x${overlay.offsetHeight})`, 'info');
-            });
+            // Search through all pages
+            for (let pageNum = 1; pageNum <= pdfDoc.numPages; pageNum++) {
+                try {
+                    const page = await pdfDoc.getPage(pageNum);
+                    const textContent = await page.getTextContent();
 
-            // --- TEMPORARY TEST: Place a fixed rectangle on page 1's highlight overlay ---
-            const highlightOverlayForPage1 = document.getElementById(`highlight-overlay-1`);
+                    // Get the highlight overlay for this page
+                    const highlightOverlay = document.getElementById(`highlight-overlay-${pageNum}`);
+                    if (!highlightOverlay) {
+                        window.showDebugMessage(`No overlay for page ${pageNum}`, 'error');
+                        continue;
+                    }
 
-            if (highlightOverlayForPage1) {
-                window.showDebugMessage(`Found highlight-overlay-1! Size: ${highlightOverlayForPage1.offsetWidth}x${highlightOverlayForPage1.offsetHeight}`, 'info');
+                    // Get the canvas to match dimensions
+                    const canvas = document.getElementById(`pdf-page-${pageNum}`);
+                    if (!canvas) {
+                        window.showDebugMessage(`No canvas for page ${pageNum}`, 'error');
+                        continue;
+                    }
 
-                const highlightSpan = document.createElement('div');
-                highlightSpan.className = 'highlight';
+                    // Get the viewport and scale
+                    const viewport = page.getViewport({ scale: 1 });
+                    const scale = canvas.width / viewport.width;
 
-                // Make it VERY visible
-                highlightSpan.style.left = `10%`;
-                highlightSpan.style.top = `10%`;
-                highlightSpan.style.width = `80%`;
-                highlightSpan.style.height = `50px`;
-                highlightSpan.style.backgroundColor = 'rgba(255, 0, 0, 0.7)'; // Bright red
-                highlightSpan.style.border = '3px solid black';
-                highlightSpan.style.color = 'white';
-                highlightSpan.style.fontWeight = 'bold';
-                highlightSpan.style.fontSize = '20px';
-                highlightSpan.style.textAlign = 'center';
-                highlightSpan.style.lineHeight = '50px';
-                highlightSpan.textContent = 'TEST HIGHLIGHT';
+                    let pageHighlights = 0;
+                    let pageMatches = 0;
 
-                highlightOverlayForPage1.appendChild(highlightSpan);
-                window.showDebugMessage("Added TEST HIGHLIGHT to page 1", 'info');
+                    // Search for text in this page (case-insensitive)
+                    for (const textItem of textContent.items) {
+                        // Clean the PDF text (remove spaces for comparison)
+                        const pdfTextCleaned = textItem.str.replace(/\s+/g, '');
 
-                // Show debug modal with success
-                window.showModal('Highlight Test',
-                    `✓ Highlight added to page 1\n` +
-                    `✓ Overlay size: ${highlightOverlayForPage1.offsetWidth}x${highlightOverlayForPage1.offsetHeight}\n` +
-                    `✓ Highlight at: 10%,10% (80% width)\n` +
-                    `✓ Color: Bright red with black border`,
-                    false
-                );
+                        if (pdfTextCleaned.toLowerCase().includes(searchTextLower)) {
+                            // Create highlight element
+                            const highlightSpan = document.createElement('div');
+                            highlightSpan.className = 'highlight';
 
-            } else {
-                window.showDebugMessage("ERROR: Could not find highlight-overlay-1", 'error');
+                            // Use the text item's transform matrix to position the highlight
+                            const transform = textItem.transform;
 
-                // Show error modal
-                window.showModal('Highlight Test Failed',
-                    `Could not find highlight overlay for page 1.\n\n` +
-                    `Possible issues:\n` +
-                    `1. PDF not fully loaded yet\n` +
-                    `2. Overlay ID is wrong\n` +
-                    `3. Page hasn't been rendered\n\n` +
-                    `Overlays found: ${allOverlays.length}`,
-                    true
-                );
+                            // Convert PDF coordinates to canvas coordinates
+                            // PDF coordinates: bottom-left origin, Y goes up
+                            // Canvas coordinates: top-left origin, Y goes down
+                            const x = transform[4] * scale;
+                            const y = (viewport.height - transform[5]) * scale;
 
-                // Try alternate approach
-                const firstOverlay = document.querySelector('.highlight-overlay');
-                if (firstOverlay) {
-                    window.showDebugMessage(`Using first overlay: ${firstOverlay.id}`, 'info');
+                            // Calculate width and height
+                            const width = textItem.width * scale;
+                            const height = (textItem.height || 15) * scale; // Default height if not available
 
-                    const highlightSpan = document.createElement('div');
-                    highlightSpan.className = 'highlight';
-                    highlightSpan.style.left = `20%`;
-                    highlightSpan.style.top = `20%`;
-                    highlightSpan.style.width = `60%`;
-                    highlightSpan.style.height = `60px`;
-                    highlightSpan.style.backgroundColor = 'rgba(0, 255, 0, 0.7)'; // Green
-                    highlightSpan.style.border = '3px solid yellow';
-                    highlightSpan.style.color = 'black';
-                    highlightSpan.style.fontSize = '18px';
-                    highlightSpan.style.textAlign = 'center';
-                    highlightSpan.style.lineHeight = '60px';
-                    highlightSpan.textContent = 'TEST ON FIRST PAGE';
+                            // Set position and size
+                            highlightSpan.style.left = `${x}px`;
+                            highlightSpan.style.top = `${y}px`;
+                            highlightSpan.style.width = `${width}px`;
+                            highlightSpan.style.height = `${height}px`;
 
-                    firstOverlay.appendChild(highlightSpan);
-                    window.showModal('Highlight Added',
-                        `Added test highlight to ${firstOverlay.id}\n` +
-                        `This should be visible as a green box with yellow border.`,
-                        false
-                    );
+                            // Add a title for debugging
+                            highlightSpan.setAttribute('title', `"${textItem.str}" → "${searchText}" (Page ${pageNum})`);
+
+                            highlightOverlay.appendChild(highlightSpan);
+                            pageHighlights++;
+                            totalHighlights++;
+                            pageMatches++;
+                            totalMatches++;
+                        }
+                    }
+
+                    if (pageMatches > 0) {
+                        window.showDebugMessage(`Found ${pageMatches} match(es) on page ${pageNum}`, 'info');
+                    }
+
+                } catch (error) {
+                    window.showDebugMessage(`Error processing page ${pageNum}: ${error.message}`, 'error');
                 }
             }
-            // --- END TEMPORARY TEST ---
+
+            // Remove loading indicator
+            if (loadingIndicator.parentNode) {
+                loadingIndicator.parentNode.removeChild(loadingIndicator);
+            }
+
+            // Show result in modal
+            if (totalMatches > 0) {
+                window.showModal('Highlights Added',
+                    `Found and highlighted "${searchText}" ${totalMatches} time(s) in the PDF.\n\n` +
+                    `Search was case-insensitive and ignored spaces.\n` +
+                    `Look for yellow highlights on all matches.`,
+                    false
+                );
+                window.showDebugMessage(`Total highlights added: ${totalHighlights} for ${totalMatches} match(es)`, 'info');
+            } else {
+                window.showModal('No Matches Found',
+                    `The text "${searchText}" was not found in this PDF.\n\n` +
+                    `Search was case-insensitive and ignored spaces.\n` +
+                    `Make sure the PDF contains the text "${searchText}".`,
+                    false
+                );
+                window.showDebugMessage(`No instances of "${searchText}" found (case-insensitive, spaces ignored)`, 'info');
+            }
         }
 
         // --- Real-Time Synchronization (Actor Listener) ---
