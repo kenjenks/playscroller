@@ -25,7 +25,7 @@
         }
 
         #pdf-viewer-wrapper {
-            position: relative; /* For positioning text layer and highlights */
+            position: relative; /* For positioning highlight divs */
             width: 100%;
             height: 100%; /* Take full available space */
             overflow-y: hidden; /* Disable manual scrolling */
@@ -331,7 +331,7 @@
 
         // --- PDF Rendering Functions ---
         async function renderPage(pageNumber, pdfPage) {
-            // Scale to fit width of the viewer wrapper (which is 100vw/vh)
+            // Scale to fit width of the viewer wrapper (which is 100vw)
             const scale = pdfViewerWrapper.clientWidth / pdfPage.getViewport({ scale: 1 }).width;
             const viewport = pdfPage.getViewport({ scale: scale });
 
@@ -354,7 +354,7 @@
 
             await pdfPage.render({ canvasContext: context, viewport: viewport }).promise;
 
-            // Store text content for later highlighting (do not render text layer explicitly)
+            // Store text content and viewport for later highlighting
             const textContent = await pdfPage.getTextContent();
             pdfPage.textContentItems = textContent.items; // Attach for later use
             pdfPage.viewport = viewport; // Also store viewport for highlight positioning
@@ -405,81 +405,56 @@
 
                 const pdfPage = await pdfDoc.getPage(i);
                 const textContentItems = pdfPage.textContentItems;
-                const viewport = pdfPage.viewport; // Use stored viewport for this page
+                const viewport = pdfPage.viewport;
 
                 if (!textContentItems || !viewport) continue;
 
-                let fullText = textContentItems.map(item => item.str).join('');
-                let matchIndex = fullText.toLowerCase().indexOf(searchTextLower);
+                let charOffsetInFullText = 0; // Track character position in the page's reconstructed text
 
-                while (matchIndex !== -1) {
-                    let charOffsetInItems = 0;
-                    let matchStartItem = -1;
-                    let matchEndItem = -1;
-                    let startOffsetInFirstItem = 0;
-                    let endOffsetInLastItem = 0;
+                // Iterate through each text item on the page
+                for (const item of textContentItems) {
+                    const itemStrLower = item.str.toLowerCase();
 
-                    // Find which text items contain the match
-                    for (let j = 0; j < textContentItems.length; j++) {
-                        const item = textContentItems[j];
-                        const itemStrLower = item.str.toLowerCase();
+                    // Check if this text item's string contains the search text
+                    let matchInItemIndex = itemStrLower.indexOf(searchTextLower);
 
-                        if (matchStartItem === -1 && charOffsetInItems + itemStrLower.length > matchIndex) {
-                            matchStartItem = j;
-                            startOffsetInFirstItem = matchIndex - charOffsetInItems;
-                        }
-                        if (matchStartItem !== -1 && charOffsetInItems + itemStrLower.length >= matchIndex + searchTextLower.length) {
-                            matchEndItem = j;
-                            endOffsetInLastItem = (matchIndex + searchTextLower.length) - charOffsetInItems;
-                            break;
-                        }
-                        charOffsetInItems += itemStrLower.length;
-                    }
+                    // While there are matches within this item's string
+                    while (matchInItemIndex !== -1) {
+                        // Calculate the start and end of the highlight within this item
+                        const matchStartCharInItem = matchInItemIndex;
+                        const matchEndCharInItem = matchInItemIndex + searchTextLower.length;
 
-                    if (matchStartItem !== -1 && matchEndItem !== -1) {
-                        const firstItem = textContentItems[matchStartItem];
-                        const lastItem = textContentItems[matchEndItem];
-
-                        // Calculate bounding box for the entire match segment
-                        // This is a simplified calculation, a precise highlight might require more complex geometry
-                        // from PDF.js's text rendering properties (font, size, transform matrix).
-                        // For a visible highlight, we'll draw a rectangle over the approximate area.
-
-                        const [x1, y1] = pdfjsLib.Util.applyTransform([firstItem.transform[4], firstItem.transform[5]], viewport.transform);
-                        const [x2, y2] = pdfjsLib.Util.applyTransform([lastItem.transform[4] + lastItem.width, lastItem.transform[5]], viewport.transform);
-
+                        // Create the highlight span
                         const highlightSpan = document.createElement('div');
                         highlightSpan.className = 'highlight';
 
-                        // Position and size the highlight div
-                        highlightSpan.style.left = `${x1}px`; // Use x-coordinate of first item
-                        highlightSpan.style.top = `${y1}px`;   // Use y-coordinate of first item
-                        highlightSpan.style.height = `${firstItem.height * viewport.scale}px`; // Assume same height for simplicity
+                        // Use PDF.js utility to get pixel coordinates from PDF units
+                        // item.transform is a 6-element array for the matrix [a,b,c,d,e,f] where e=x, f=y
+                        // The (x,y) of the text item is its origin.
+                        // We need to apply the item's transform, then the viewport transform.
 
-                        // Calculate width based on the extent of the match
-                        let totalMatchWidth = 0;
-                        for (let j = matchStartItem; j <= matchEndItem; j++) {
-                            const item = textContentItems[j];
-                            const itemWidth = item.width * viewport.scale; // Width of the item
-                            if (j === matchStartItem) {
-                                // For the first item, only consider the part from startOffsetInFirstItem
-                                totalMatchWidth += itemWidth * (1 - (startOffsetInFirstItem / item.str.length));
-                            } else if (j === matchEndItem) {
-                                // For the last item, only consider up to endOffsetInLastItem
-                                totalMatchWidth += itemWidth * (endOffsetInLastItem / item.str.length);
-                            } else {
-                                // Full width for intermediate items
-                                totalMatchWidth += itemWidth;
-                            }
-                        }
-                        // This is still an approximation, more accurate would be parsing char widths
-                        highlightSpan.style.width = `${Math.max(1, totalMatchWidth)}px`; // Ensure min width of 1px
+                        // Get the base position of the text item
+                        const [x, y] = pdfjsLib.Util.applyTransform([item.transform[4], item.transform[5]], viewport.transform);
 
+                        // Calculate the highlight's width and height based on the text item's dimensions
+                        const width = item.width * viewport.scale;
+                        const height = item.height * viewport.scale;
+
+                        // Positioning: Simplified to highlight the entire text item.
+                        // For precise sub-string highlighting within an item, one would need
+                        // to measure character widths or use PDF.js's internal text layer DOM elements,
+                        // which is more complex and prone to browser-specific font rendering issues.
+                        highlightSpan.style.left = `${x}px`;
+                        highlightSpan.style.top = `${y}px`;
+                        highlightSpan.style.width = `${width}px`;
+                        highlightSpan.style.height = `${height}px`;
 
                         pageDiv.appendChild(highlightSpan);
+
+                        // Look for the next match within this same item's string, starting after the current match
+                        matchInItemIndex = itemStrLower.indexOf(searchTextLower, matchInItemIndex + 1);
                     }
-                    // Find next match, starting after the current one
-                    matchIndex = fullText.toLowerCase().indexOf(searchTextLower, matchIndex + searchTextLower.length);
+                    charOffsetInFullText += itemStrLower.length; // Update offset for debugging if needed
                 }
             }
         }
