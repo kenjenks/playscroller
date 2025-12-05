@@ -402,18 +402,17 @@
 
         // Helper function to clean search text
         function cleanSearchText(text) {
-            // Remove spaces from the beginning and end
+            // Remove spaces ONLY from the beginning and end
             let cleaned = text.trim();
-            // Remove ALL spaces from the text (including internal spaces)
-            cleaned = cleaned.replace(/\s+/g, '');
             window.showDebugMessage(`Cleaned search text: "${text}" -> "${cleaned}"`, 'info');
             return cleaned;
         }
 
+        // UPDATED: handleHighlightClick function - MODAL CLOSES AFTER HIGHLIGHTING COMPLETES
         window.handleHighlightClick = () => {
             window.toggleMenu(); // Close the side menu
-            window.showModal('Highlight Text 0.5.9',
-                'Enter text to highlight across the script:\n\nNote: Spaces will be ignored in the search.',
+            window.showModal('Highlight Text 0.6',
+                'Enter text to highlight across the script:\n\nNote: Leading/trailing spaces will be ignored.',
                 false, true,
                 async (text) => { // Make callback async
                     window.showDebugMessage(`User entered text: "${text}"`, 'info');
@@ -427,7 +426,7 @@
                         // NO MODAL - just clear highlights silently
                         return; // Return immediately for blank input
                     } else {
-                        // Clean the search text (remove all spaces)
+                        // Clean the search text (trim only)
                         activeHighlightText = cleanSearchText(text);
                         window.showDebugMessage(`Searching for: "${activeHighlightText}" (case-insensitive)`, 'info');
 
@@ -577,7 +576,7 @@
             loadingIndicator.style.display = 'block';
             document.body.appendChild(loadingIndicator);
 
-            window.showDebugMessage(`Searching for "${searchText}" in PDF (case-insensitive, spaces ignored)...`, 'info');
+            window.showDebugMessage(`Searching for "${searchText}" in PDF (case-insensitive)...`, 'info');
 
             if (!pdfDoc) {
                 window.showDebugMessage("ERROR: No PDF document loaded", 'error');
@@ -587,8 +586,9 @@
                 return;
             }
 
-            // Prepare search text: case-insensitive and clean
-            const searchTextLower = searchText.toLowerCase();
+            // Prepare search text: case-insensitive and trim only
+            const searchTextLower = searchText.toLowerCase().trim();
+            const searchTextLowerNoSpaces = searchTextLower.replace(/\s+/g, ''); // For matching without spaces
             let totalHighlights = 0;
             let totalMatches = 0;
 
@@ -620,44 +620,118 @@
                     let pageHighlights = 0;
                     let pageMatches = 0;
 
-                    // Search for text in this page (case-insensitive)
-                    for (const textItem of textContent.items) {
-                        // Clean the PDF text (remove spaces for comparison)
-                        const pdfTextCleaned = textItem.str.replace(/\s+/g, '');
+                    // Build concatenated text from all text items on this page WITH estimated spaces
+                    let pageTextWithSpaces = '';
+                    let pageTextWithoutSpaces = '';
+                    const textItems = textContent.items;
 
-                        if (pdfTextCleaned.toLowerCase().includes(searchTextLower)) {
-                            window.showDebugMessage(`Found match: "${textItem.str}" on page ${pageNum}`, 'info');
+                    // Create a mapping of text positions
+                    const textPositions = [];
+
+                    // First pass: build the full page text and track positions
+                    for (let i = 0; i < textItems.length; i++) {
+                        const textItem = textItems[i];
+                        const text = textItem.str;
+
+                        // Add to pageTextWithoutSpaces (for matching phrases without spaces)
+                        pageTextWithoutSpaces += text;
+
+                        // For pageTextWithSpaces, we need to estimate if there should be a space
+                        if (i > 0) {
+                            const prevItem = textItems[i - 1];
+                            // Estimate if there should be a space between items
+                            // If the X distance suggests a gap larger than typical character width, add a space
+                            const prevX = prevItem.transform[4];
+                            const prevWidth = prevItem.width;
+                            const currentX = textItem.transform[4];
+                            const charWidth = prevWidth / Math.max(1, prevItem.str.length);
+
+                            // If the distance is more than half a character width, assume a space
+                            if (currentX - (prevX + prevWidth) > charWidth * 0.5) {
+                                pageTextWithSpaces += ' ';
+                            }
+                        }
+
+                        pageTextWithSpaces += text;
+
+                        // Store position information for this text item
+                        textPositions.push({
+                            text: text,
+                            transform: textItem.transform,
+                            width: textItem.width,
+                            height: textItem.height || 15,
+                            startIndexWithSpaces: pageTextWithSpaces.length - text.length,
+                            endIndexWithSpaces: pageTextWithSpaces.length,
+                            startIndexWithoutSpaces: pageTextWithoutSpaces.length - text.length,
+                            endIndexWithoutSpaces: pageTextWithoutSpaces.length
+                        });
+                    }
+
+                    // Helper functions
+                    function findMatchingItems(matchStart, matchEnd, textPositions, useWithSpaces) {
+                        const matchingItems = [];
+                        let currentPos = matchStart;
+
+                        while (currentPos < matchEnd) {
+                            // Find the text item that contains the current position
+                            const itemIndex = textPositions.findIndex(item => {
+                                const startIndex = useWithSpaces ? item.startIndexWithSpaces : item.startIndexWithoutSpaces;
+                                const endIndex = useWithSpaces ? item.endIndexWithSpaces : item.endIndexWithoutSpaces;
+                                return currentPos >= startIndex && currentPos < endIndex;
+                            });
+
+                            if (itemIndex === -1) break;
+
+                            const item = textPositions[itemIndex];
+                            const startIndex = useWithSpaces ? item.startIndexWithSpaces : item.startIndexWithoutSpaces;
+
+                            matchingItems.push({
+                                item: item,
+                                itemIndex: itemIndex,
+                                matchStartInItem: Math.max(0, matchStart - startIndex),
+                                matchEndInItem: Math.min(item.text.length, matchEnd - startIndex)
+                            });
+
+                            // Move to the next text item
+                            currentPos = useWithSpaces ? item.endIndexWithSpaces : item.endIndexWithoutSpaces;
+                        }
+
+                        return matchingItems;
+                    }
+
+                    function createHighlightsForMatch(matchingItems, textPositions, viewport, scale,
+                                                      highlightOverlay, pageNum, searchText) {
+                        for (const match of matchingItems) {
+                            const item = match.item;
+                            const matchStartInItem = match.matchStartInItem;
+                            const matchEndInItem = match.matchEndInItem;
+
+                            // Calculate the position of the matched portion within the text item
+                            const totalWidth = item.width * scale;
+                            const charWidth = totalWidth / Math.max(1, item.text.length);
+                            const matchedWidth = (matchEndInItem - matchStartInItem) * charWidth;
+
+                            // Calculate starting X position
+                            const baseX = item.transform[4] * scale;
+                            const offsetX = matchStartInItem * charWidth;
+                            const x = baseX + offsetX;
+
+                            // Calculate Y position
+                            const textHeight = (item.height || 15) * scale;
+                            const y = (viewport.height - item.transform[5]) * scale - textHeight;
 
                             // Create highlight element
                             const highlightSpan = document.createElement('div');
                             highlightSpan.className = 'highlight';
 
-                            // Use the text item's transform matrix to position the highlight
-                            const transform = textItem.transform;
-
-                            // Convert PDF coordinates to canvas coordinates
-                            // PDF coordinates: bottom-left origin, Y goes up
-                            // Canvas coordinates: top-left origin, Y goes down
-                            const x = transform[4] * scale;
-
-                            // FIX: Adjust Y position upward by the FULL height of the text
-                            // The textItem.transform[5] gives the baseline position in PDF coordinates
-                            // We need to move it upward by the full text height to align with the top of the text
-                            const textHeight = (textItem.height || 15) * scale;
-                            const y = (viewport.height - transform[5]) * scale - textHeight;
-
-                            // Calculate width and height
-                            const width = (textItem.width * scale) + 4; // Add 4px width
-                            const height = textHeight + 3; // Add 3px height
-
-                            // Adjust position to account for extra width (move 2px left)
-                            const adjustedX = x - 2; // Move left by 2px
+                            // Adjust position slightly for better visual alignment
+                            const adjustedX = x - 2;
 
                             // Set position and size
                             highlightSpan.style.left = `${adjustedX}px`;
                             highlightSpan.style.top = `${y}px`;
-                            highlightSpan.style.width = `${width}px`;
-                            highlightSpan.style.height = `${height}px`;
+                            highlightSpan.style.width = `${matchedWidth + 4}px`;
+                            highlightSpan.style.height = `${textHeight + 3}px`;
 
                             // Ensure no border or outline
                             highlightSpan.style.border = 'none';
@@ -665,15 +739,65 @@
                             highlightSpan.style.boxShadow = 'none';
 
                             // Add a title for debugging
-                            highlightSpan.setAttribute('title', `"${textItem.str}" → "${searchText}" (Page ${pageNum})`);
+                            const matchedText = item.text.substring(matchStartInItem, matchEndInItem);
+                            highlightSpan.setAttribute('title', `"${matchedText}" (Page ${pageNum}, part of "${searchText}")`);
 
                             highlightOverlay.appendChild(highlightSpan);
-                            pageHighlights++;
-                            totalHighlights++;
-                            pageMatches++;
-                            totalMatches++;
+                        }
+                    }
 
-                            window.showDebugMessage(`Added highlight at (${x.toFixed(1)}, ${y.toFixed(1)})`, 'info');
+                    // Try matching with spaces first (exact phrase match)
+                    const pageTextWithSpacesLower = pageTextWithSpaces.toLowerCase();
+                    let searchIndex = 0;
+
+                    while ((searchIndex = pageTextWithSpacesLower.indexOf(searchTextLower, searchIndex)) !== -1) {
+                        const matchStart = searchIndex;
+                        const matchEnd = searchIndex + searchTextLower.length;
+
+                        window.showDebugMessage(`Found match with spaces at indices ${matchStart}-${matchEnd} on page ${pageNum}`, 'info');
+
+                        // Find which text items contain this match (using with-spaces indices)
+                        const matchingItems = findMatchingItems(matchStart, matchEnd, textPositions, true);
+
+                        if (matchingItems.length > 0) {
+                            createHighlightsForMatch(matchingItems, textPositions, viewport, scale,
+                                                     highlightOverlay, pageNum, searchText);
+                            pageHighlights += matchingItems.length;
+                            pageMatches++;
+                            totalHighlights += matchingItems.length;
+                            totalMatches++;
+                        }
+
+                        // Move search index forward
+                        searchIndex = matchEnd;
+                    }
+
+                    // If no matches found with spaces, try matching without spaces
+                    // (for cases like "HYPE" at end of line, "LEADER" at start of next line)
+                    if (pageMatches === 0) {
+                        const pageTextWithoutSpacesLower = pageTextWithoutSpaces.toLowerCase();
+                        searchIndex = 0;
+
+                        while ((searchIndex = pageTextWithoutSpacesLower.indexOf(searchTextLowerNoSpaces, searchIndex)) !== -1) {
+                            const matchStart = searchIndex;
+                            const matchEnd = searchIndex + searchTextLowerNoSpaces.length;
+
+                            window.showDebugMessage(`Found match without spaces at indices ${matchStart}-${matchEnd} on page ${pageNum}`, 'info');
+
+                            // Find which text items contain this match (using without-spaces indices)
+                            const matchingItems = findMatchingItems(matchStart, matchEnd, textPositions, false);
+
+                            if (matchingItems.length > 0) {
+                                createHighlightsForMatch(matchingItems, textPositions, viewport, scale,
+                                                         highlightOverlay, pageNum, searchText);
+                                pageHighlights += matchingItems.length;
+                                pageMatches++;
+                                totalHighlights += matchingItems.length;
+                                totalMatches++;
+                            }
+
+                            // Move search index forward
+                            searchIndex = matchEnd;
                         }
                     }
 
@@ -695,7 +819,7 @@
             if (totalMatches > 0) {
                 window.showDebugMessage(`SUCCESS: Highlighted "${searchText}" ${totalMatches} time(s) in the PDF`, 'info');
             } else {
-                window.showDebugMessage(`No instances of "${searchText}" found (case-insensitive, spaces ignored)`, 'info');
+                window.showDebugMessage(`No instances of "${searchText}" found (case-insensitive)`, 'info');
             }
 
             window.showDebugMessage(`FINISHED renderHighlightsForText("${searchText}")`, 'info');
