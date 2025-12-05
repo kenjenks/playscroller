@@ -67,7 +67,6 @@
             overflow: hidden; /* Prevent highlights from spilling out */
         }
 
-
         /* --- Hamburger Menu Styles --- */
         #menu-button {
             position: fixed;
@@ -142,6 +141,36 @@
         #highlight-modal {
             background-color: rgba(0, 0, 0, 0.7);
         }
+
+        /* Debug panel styles */
+        #debug-panel {
+            font-family: monospace;
+        }
+
+        #debug-content {
+            font-family: 'Courier New', monospace;
+            white-space: pre-wrap;
+        }
+
+        #debug-button {
+            z-index: 1001; /* Above everything */
+        }
+
+        /* Make highlight VERY visible */
+        .highlight {
+            position: absolute;
+            background-color: rgba(255, 0, 0, 0.7) !important; /* Bright red */
+            border: 3px solid black !important;
+            pointer-events: none;
+            z-index: 100;
+            color: white !important;
+            font-size: 20px;
+            font-weight: bold;
+            text-align: center;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
     </style>
     <!-- PDF.js library -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.11.338/pdf.min.js"></script>
@@ -172,10 +201,10 @@
         </button>
         <ul>
             <li><button id="highlight-menu-item" onclick="window.handleHighlightClick()">Highlight...</button></li>
+            <li><button onclick="window.testHighlight()">Test Highlight</button></li>
             <li><button id="exit-menu-item" onclick="window.exitApp()">Exit</button></li>
         </ul>
     </div>
-
 
     <!-- Generic Modal for Highlight Input / Errors -->
     <div id="modal" class="fixed inset-0 bg-gray-600 bg-opacity-50 hidden items-center justify-center z-50">
@@ -192,6 +221,22 @@
         </div>
     </div>
 
+    <!-- Debug Panel for Tablet Testing -->
+    <div id="debug-panel" class="fixed bottom-0 left-0 right-0 bg-black bg-opacity-80 text-white p-3 z-50 hidden">
+        <div class="flex justify-between items-center">
+            <h3 class="font-bold">Debug Info</h3>
+            <button onclick="window.toggleDebugPanel()" class="bg-red-500 px-3 py-1 rounded">×</button>
+        </div>
+        <div id="debug-content" class="mt-2 text-sm overflow-auto max-h-32">
+            <!-- Debug messages will appear here -->
+        </div>
+    </div>
+
+    <!-- Quick Debug Button -->
+    <button id="debug-button" onclick="window.toggleDebugPanel()"
+            class="fixed bottom-4 right-4 bg-blue-500 text-white p-3 rounded-full shadow-lg z-50">
+        Debug
+    </button>
 
     <script type="module">
         // Import the functions you need from the SDKs you need
@@ -222,6 +267,71 @@
         // Ensure PDF.js worker is set up
         pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.11.338/pdf.worker.min.js';
 
+        // --- Debug Functions for Tablet Testing ---
+        let debugMessages = [];
+
+        window.showDebugMessage = (message, type = 'info') => {
+            const timestamp = new Date().toLocaleTimeString();
+            const formattedMessage = `[${timestamp}] ${message}`;
+            debugMessages.push({ message: formattedMessage, type });
+
+            // Keep only last 10 messages
+            if (debugMessages.length > 10) {
+                debugMessages.shift();
+            }
+
+            // Update debug panel if visible
+            const debugContent = document.getElementById('debug-content');
+            if (debugContent) {
+                debugContent.innerHTML = debugMessages
+                    .map(msg => `<div class="${msg.type === 'error' ? 'text-red-300' : 'text-green-300'}">${msg.message}</div>`)
+                    .join('');
+                debugContent.scrollTop = debugContent.scrollHeight;
+            }
+
+            // Also show modal for important errors
+            if (type === 'error') {
+                window.showModal('Debug Error', message, true);
+            }
+        };
+
+        window.toggleDebugPanel = () => {
+            const panel = document.getElementById('debug-panel');
+            const button = document.getElementById('debug-button');
+
+            if (panel.classList.contains('hidden')) {
+                panel.classList.remove('hidden');
+                button.textContent = 'Hide Debug';
+                button.classList.remove('bg-blue-500');
+                button.classList.add('bg-red-500');
+            } else {
+                panel.classList.add('hidden');
+                button.textContent = 'Debug';
+                button.classList.remove('bg-red-500');
+                button.classList.add('bg-blue-500');
+            }
+        };
+
+        // Function to show debug info in modal
+        window.showDebugInfo = (title, info) => {
+            let infoText = '';
+
+            if (typeof info === 'object') {
+                for (const [key, value] of Object.entries(info)) {
+                    infoText += `${key}: ${value}\n`;
+                }
+            } else {
+                infoText = info;
+            }
+
+            window.showModal(`Debug: ${title}`, infoText, false);
+        };
+
+        window.testHighlight = () => {
+            window.toggleMenu(); // Close menu
+            window.showDebugMessage("Manual highlight test triggered", 'info');
+            renderHighlights();
+        };
 
         // --- UI Utility Functions ---
         const modal = document.getElementById('modal');
@@ -285,11 +395,15 @@
                     // If text is cleared, remove highlights; otherwise, re-render
                     if (activeHighlightText === "") {
                         document.querySelectorAll('.highlight').forEach(el => el.remove());
+                        window.showDebugMessage("Cleared all highlights", 'info');
                     } else {
+                        window.showDebugMessage(`Setting highlight text: "${activeHighlightText}"`, 'info');
                         renderHighlights(); // Re-render all pages with new highlight
                     }
                 },
-                () => { /* Cancelled, do nothing */ }
+                () => {
+                    window.showDebugMessage("Highlight cancelled", 'info');
+                }
             );
         };
 
@@ -318,7 +432,7 @@
 
                 await signInAnonymously(auth);
                 userId = auth.currentUser?.uid || crypto.randomUUID();
-                console.log("Actor User ID:", userId); // For debugging, not in UI
+                window.showDebugMessage("Actor User ID: " + userId, 'info');
 
                 // Extract session_id and pdf_url from QR code URL
                 const urlParams = new URLSearchParams(window.location.search);
@@ -333,7 +447,7 @@
 
                 currentSessionId = sessionIdFromUrl;
                 currentPdfUrl = pdfUrlFromUrl;
-                console.log("Connected to Session:", currentSessionId, "PDF URL:", currentPdfUrl); // For debugging
+                window.showDebugMessage(`Connected to Session: ${currentSessionId}, PDF URL: ${currentPdfUrl}`, 'info');
 
                 document.getElementById('loading-message').textContent = `Connected to session ${currentSessionId}. Loading PDF...`;
 
@@ -375,6 +489,8 @@
             highlightOverlay.className = 'highlight-overlay';
             highlightOverlay.id = `highlight-overlay-${pageNumber}`; // Give it an ID for targeting
 
+            window.showDebugMessage(`Created overlay for page ${pageNumber}: ${highlightOverlay.id}`, 'info');
+
             pageDiv.appendChild(canvas);
             pageDiv.appendChild(highlightOverlay); // Append overlay AFTER canvas for z-index
             pdfViewerWrapper.appendChild(pageDiv);
@@ -394,6 +510,8 @@
                 pdfDoc = pdf;
                 pdfViewerWrapper.innerHTML = ''; // Clear loading message
 
+                window.showDebugMessage(`PDF loaded: ${pdf.numPages} pages`, 'info');
+
                 // Render all pages
                 for (let i = 1; i <= pdf.numPages; i++) {
                     const page = await pdf.getPage(i);
@@ -402,6 +520,12 @@
 
                 // After rendering all pages, apply initial highlights
                 renderHighlights();
+
+                // DEBUG: Force highlights after a short delay
+                setTimeout(() => {
+                    window.showDebugMessage("Forcing highlight test after delay", 'info');
+                    renderHighlights();
+                }, 2000);
 
                 // Initial scroll to top
                 pdfViewerWrapper.scrollTop = 0;
@@ -414,38 +538,105 @@
             }
         }
 
-
         // --- Highlighting Logic (TEMPORARY STATIC TEST V2 - with Highlight Overlay) ---
         async function renderHighlights() {
             // Clear all existing highlights before re-rendering
             document.querySelectorAll('.highlight').forEach(el => el.remove());
 
+            window.showDebugMessage("Starting highlight test...", 'info');
+
             if (!pdfDoc) {
-                return; // No PDF loaded yet
+                window.showDebugMessage("No PDF document loaded", 'error');
+                return;
             }
 
+            // --- TEMPORARY TEST: Debug what overlays exist ---
+            const allOverlays = document.querySelectorAll('.highlight-overlay');
+            window.showDebugMessage(`Found ${allOverlays.length} overlay(s)`, 'info');
+
+            // Show overlay info in debug panel
+            allOverlays.forEach((overlay, index) => {
+                window.showDebugMessage(`Overlay ${index + 1}: ${overlay.id} (${overlay.offsetWidth}x${overlay.offsetHeight})`, 'info');
+            });
+
             // --- TEMPORARY TEST: Place a fixed rectangle on page 1's highlight overlay ---
-            const highlightOverlayForPage1 = document.getElementById(`highlight-overlay-1`); // Target the first page's overlay
+            const highlightOverlayForPage1 = document.getElementById(`highlight-overlay-1`);
+
             if (highlightOverlayForPage1) {
+                window.showDebugMessage(`Found highlight-overlay-1! Size: ${highlightOverlayForPage1.offsetWidth}x${highlightOverlayForPage1.offsetHeight}`, 'info');
+
                 const highlightSpan = document.createElement('div');
                 highlightSpan.className = 'highlight';
 
-                // Fixed position for testing (relative to the overlay)
-                highlightSpan.style.left = `50px`;
-                highlightSpan.style.top = `50px`;
-                highlightSpan.style.width = `200px`;
-                highlightSpan.style.height = `30px`;
+                // Make it VERY visible
+                highlightSpan.style.left = `10%`;
+                highlightSpan.style.top = `10%`;
+                highlightSpan.style.width = `80%`;
+                highlightSpan.style.height = `50px`;
+                highlightSpan.style.backgroundColor = 'rgba(255, 0, 0, 0.7)'; // Bright red
+                highlightSpan.style.border = '3px solid black';
+                highlightSpan.style.color = 'white';
+                highlightSpan.style.fontWeight = 'bold';
+                highlightSpan.style.fontSize = '20px';
+                highlightSpan.style.textAlign = 'center';
+                highlightSpan.style.lineHeight = '50px';
+                highlightSpan.textContent = 'TEST HIGHLIGHT';
 
                 highlightOverlayForPage1.appendChild(highlightSpan);
-                console.log("Static highlight placed on page 1 overlay for testing.");
+                window.showDebugMessage("Added TEST HIGHLIGHT to page 1", 'info');
+
+                // Show debug modal with success
+                window.showModal('Highlight Test',
+                    `✓ Highlight added to page 1\n` +
+                    `✓ Overlay size: ${highlightOverlayForPage1.offsetWidth}x${highlightOverlayForPage1.offsetHeight}\n` +
+                    `✓ Highlight at: 10%,10% (80% width)\n` +
+                    `✓ Color: Bright red with black border`,
+                    false
+                );
+
             } else {
-                console.warn("Could not find highlight-overlay-1 to place static highlight.");
+                window.showDebugMessage("ERROR: Could not find highlight-overlay-1", 'error');
+
+                // Show error modal
+                window.showModal('Highlight Test Failed',
+                    `Could not find highlight overlay for page 1.\n\n` +
+                    `Possible issues:\n` +
+                    `1. PDF not fully loaded yet\n` +
+                    `2. Overlay ID is wrong\n` +
+                    `3. Page hasn't been rendered\n\n` +
+                    `Overlays found: ${allOverlays.length}`,
+                    true
+                );
+
+                // Try alternate approach
+                const firstOverlay = document.querySelector('.highlight-overlay');
+                if (firstOverlay) {
+                    window.showDebugMessage(`Using first overlay: ${firstOverlay.id}`, 'info');
+
+                    const highlightSpan = document.createElement('div');
+                    highlightSpan.className = 'highlight';
+                    highlightSpan.style.left = `20%`;
+                    highlightSpan.style.top = `20%`;
+                    highlightSpan.style.width = `60%`;
+                    highlightSpan.style.height = `60px`;
+                    highlightSpan.style.backgroundColor = 'rgba(0, 255, 0, 0.7)'; // Green
+                    highlightSpan.style.border = '3px solid yellow';
+                    highlightSpan.style.color = 'black';
+                    highlightSpan.style.fontSize = '18px';
+                    highlightSpan.style.textAlign = 'center';
+                    highlightSpan.style.lineHeight = '60px';
+                    highlightSpan.textContent = 'TEST ON FIRST PAGE';
+
+                    firstOverlay.appendChild(highlightSpan);
+                    window.showModal('Highlight Added',
+                        `Added test highlight to ${firstOverlay.id}\n` +
+                        `This should be visible as a green box with yellow border.`,
+                        false
+                    );
+                }
             }
             // --- END TEMPORARY TEST ---
-
-            // The actual text-matching logic is still commented out.
         }
-
 
         // --- Real-Time Synchronization (Actor Listener) ---
         function listenForScrollState() {
