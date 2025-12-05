@@ -176,10 +176,108 @@
             z-index: 10000;
             display: none;
         }
+
+        /* --- QR Code Modal - Full Screen --- */
+        #qr-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: white;
+            z-index: 10000;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        #qr-modal-content {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            width: 100%;
+            height: 100%;
+            max-width: 1000px;
+            text-align: center;
+        }
+
+        #qr-code-display {
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            width: 100%;
+        }
+
+        #qr-code-display canvas {
+            max-width: 90vw;
+            max-height: 70vh;
+            width: auto !important;
+            height: auto !important;
+            border: 10px solid white;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+        }
+
+        .qr-title {
+            font-size: 2.5rem;
+            font-weight: bold;
+            color: #1f2937;
+            margin-bottom: 1.5rem;
+        }
+
+        .qr-instructions {
+            font-size: 1.2rem;
+            color: #4b5563;
+            margin-bottom: 2rem;
+            max-width: 600px;
+        }
+
+        .session-info {
+            background-color: #f3f4f6;
+            padding: 15px 25px;
+            border-radius: 10px;
+            font-family: monospace;
+            font-size: 1.1rem;
+            margin-bottom: 2rem;
+            border: 2px solid #e5e7eb;
+        }
+
+        .close-qr-btn {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background-color: rgba(0, 0, 0, 0.7);
+            color: white;
+            border: none;
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            font-size: 1.5rem;
+            cursor: pointer;
+            z-index: 10001;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .close-qr-btn:hover {
+            background-color: rgba(0, 0, 0, 0.9);
+        }
+
+        /* Hidden class */
+        .hidden {
+            display: none !important;
+        }
     </style>
     <!-- PDF.js library -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.11.338/pdf.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.11.338/pdf.worker.min.js"></script> <!-- Worker also needed -->
+    <!-- QRious for QR code generation -->
+    <script src="https://unpkg.com/qrious@4.0.2/dist/qrious.min.js"></script>
 </head>
 <body class="p-0"> <!-- Remove default padding -->
 
@@ -206,6 +304,7 @@
         </button>
         <ul>
             <li><button id="highlight-menu-item" onclick="window.handleHighlightClick()">Highlight Text...</button></li>
+            <li><button id="show-qr-btn" class="hidden">Show Session QR Code</button></li>
             <li><button id="exit-menu-item" onclick="window.exitApp()">Exit</button></li>
         </ul>
     </div>
@@ -221,6 +320,25 @@
             <div id="modal-buttons" class="flex justify-end space-x-4 mt-6">
                 <button id="modal-cancel-btn" class="py-2 px-4 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300 hidden">Cancel</button>
                 <button id="modal-ok-btn" class="py-2 px-4 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700">Highlight</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal for QR Code Display - FULL SCREEN -->
+    <div id="qr-modal" class="hidden">
+        <button class="close-qr-btn" id="qr-modal-close">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+        </button>
+        <div id="qr-modal-content">
+            <h2 class="qr-title">Session QR Code</h2>
+            <p class="qr-instructions">Scan this QR code to join the same session</p>
+            <div id="qr-code-display">
+                <!-- QR code will be rendered here -->
+            </div>
+            <div class="session-info">
+                Session ID: <span id="session-id-display"></span>
             </div>
         </div>
     </div>
@@ -390,6 +508,65 @@
             modalOkBtn.classList.remove('opacity-50', 'cursor-not-allowed');
         };
 
+        // --- QR Code Modal Functions ---
+        function showQrModal() {
+            if (!currentSessionId || !currentPdfUrl) {
+                window.showModal('No Session', 'Not connected to a session yet.', true);
+                return;
+            }
+
+            // Generate the actor app URL (same as current page URL)
+            const actorAppUrl = window.location.origin + window.location.pathname;
+            const actorSyncUrl = `${actorAppUrl}?session_id=${currentSessionId}&pdf_url=${encodeURIComponent(currentPdfUrl)}`;
+
+            window.showDebugMessage(`QR Code URL: ${actorSyncUrl}`, 'info');
+
+            // Update session ID display
+            document.getElementById('session-id-display').textContent = currentSessionId;
+
+            // Generate QR code - make it as large as possible
+            const qrDisplay = document.getElementById('qr-code-display');
+            qrDisplay.innerHTML = '';
+
+            // Create container for QR code
+            const qrContainer = document.createElement('div');
+            qrContainer.style.width = '100%';
+            qrContainer.style.height = '100%';
+            qrContainer.style.display = 'flex';
+            qrContainer.style.justifyContent = 'center';
+            qrContainer.style.alignItems = 'center';
+
+            const qrCanvas = document.createElement('canvas');
+            qrContainer.appendChild(qrCanvas);
+            qrDisplay.appendChild(qrContainer);
+
+            // Calculate optimal size based on screen dimensions
+            const screenWidth = window.innerWidth;
+            const screenHeight = window.innerHeight;
+            const qrSize = Math.min(screenWidth, screenHeight) * 0.8;
+
+            new QRious({
+                element: qrCanvas,
+                value: actorSyncUrl,
+                size: qrSize,
+                background: '#ffffff',
+                foreground: '#000000', // Black for maximum contrast
+                level: 'H' // Highest error correction
+            });
+
+            document.getElementById('qr-modal').classList.remove('hidden');
+
+            // Hide menu button when QR code is shown
+            document.getElementById('menu-button').classList.add('hidden');
+        }
+
+        function closeQrModal() {
+            document.getElementById('qr-modal').classList.add('hidden');
+
+            // Show menu button again
+            document.getElementById('menu-button').classList.remove('hidden');
+        }
+
         // --- Menu Functions ---
         const menuButton = document.getElementById('menu-button');
         const sideMenu = document.getElementById('side-menu');
@@ -411,7 +588,7 @@
         // UPDATED: handleHighlightClick function - MODAL CLOSES AFTER HIGHLIGHTING COMPLETES
         window.handleHighlightClick = () => {
             window.toggleMenu(); // Close the side menu
-            window.showModal('Highlight Text 0.6',
+            window.showModal('Highlight Text 0.5.8',
                 'Enter text to highlight across the script:\n\nNote: Leading/trailing spaces will be ignored.',
                 false, true,
                 async (text) => { // Make callback async
@@ -438,6 +615,12 @@
                     window.showDebugMessage("Highlight cancelled", 'info');
                 }
             );
+        };
+
+        // Function to handle Show QR Code button click
+        window.handleShowQrClick = () => {
+            window.toggleMenu(); // Close the side menu
+            showQrModal();
         };
 
         window.exitApp = () => {
@@ -479,6 +662,9 @@
                 currentSessionId = sessionIdFromUrl;
                 currentPdfUrl = pdfUrlFromUrl;
                 window.showDebugMessage(`Connected to Session: ${currentSessionId}, PDF URL: ${currentPdfUrl}`, 'info');
+
+                // Show QR button now that we have session info
+                document.getElementById('show-qr-btn').classList.remove('hidden');
 
                 document.getElementById('loading-message').textContent = `Connected to session ${currentSessionId}. Loading PDF...`;
 
@@ -870,6 +1056,13 @@
         // --- Initial Setup ---
         document.addEventListener('DOMContentLoaded', () => {
             pdfViewerWrapper = document.getElementById('pdf-viewer-wrapper'); // Our main scrollable div
+
+            // Set up QR modal close button
+            document.getElementById('qr-modal-close').onclick = closeQrModal;
+
+            // Set up Show QR button click handler
+            document.getElementById('show-qr-btn').onclick = window.handleShowQrClick;
+
             initializeFirebase();
 
             // Attach event listener for menu button
