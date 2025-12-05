@@ -293,11 +293,6 @@
                     .join('');
                 debugContent.scrollTop = debugContent.scrollHeight;
             }
-
-            // Also show modal for important errors
-            if (type === 'error') {
-                window.showModal('Debug Error', message, true);
-            }
         };
 
         window.toggleDebugPanel = () => {
@@ -317,26 +312,14 @@
             }
         };
 
-        // Function to show debug info in modal
-        window.showDebugInfo = (title, info) => {
-            let infoText = '';
-
-            if (typeof info === 'object') {
-                for (const [key, value] of Object.entries(info)) {
-                    infoText += `${key}: ${value}\n`;
-                }
-            } else {
-                infoText = info;
-            }
-
-            window.showModal(`Debug: ${title}`, infoText, false);
-        };
-
-        // Function to highlight "AUDIENCE" specifically
+        // Function to highlight "AUDIENCE" specifically - NO MODAL
         window.highlightAudience = () => {
             window.toggleMenu(); // Close menu
             activeHighlightText = "AUDIENCE";
             window.showDebugMessage(`Highlighting "${activeHighlightText}"...`, 'info');
+            // Clear existing highlights first
+            document.querySelectorAll('.highlight').forEach(el => el.remove());
+            // Highlight without showing modal
             renderHighlightsForText(activeHighlightText);
         };
 
@@ -404,25 +387,27 @@
             return cleaned;
         }
 
-        // FIXED: Updated handleHighlightClick function
+        // UPDATED: handleHighlightClick function - NO MODAL AFTER INPUT
         window.handleHighlightClick = () => {
             window.toggleMenu(); // Close the side menu
-            window.showModal('Highlight Text 0.5.1',
+            window.showModal('Highlight Text 0.5.2',
                 'Enter text to highlight across the script:\n\nNote: Spaces will be ignored in the search.',
                 false, true,
                 (text) => {
-                    // Clear existing highlights first
+                    window.closeModal(); // Close the input modal immediately
+
+                    // Clear existing highlights first (ALWAYS do this)
                     document.querySelectorAll('.highlight').forEach(el => el.remove());
 
                     if (!text || text.trim() === "") {
                         activeHighlightText = "";
                         window.showDebugMessage("Cleared all highlights", 'info');
-                        window.showModal('Highlights Cleared', 'All highlights have been removed from the script.', false);
+                        // NO MODAL - just clear highlights silently
                     } else {
                         // Clean the search text (remove all spaces)
                         activeHighlightText = cleanSearchText(text);
                         window.showDebugMessage(`Searching for: "${activeHighlightText}" (case-insensitive)`, 'info');
-                        renderHighlightsForText(activeHighlightText);
+                        renderHighlightsForText(activeHighlightText); // NO MODAL for results
                     }
                 },
                 () => {
@@ -438,8 +423,6 @@
                 // If it's the main window, simply show a message or redirect.
                 // Cannot force close window not opened by script.
                 window.showModal('Exit App', 'You can close this tab/window manually.', false);
-                // For a more graceful "exit" from a PWA or standalone app, you might redirect:
-                // window.location.href = 'https://playscroller.web.app/';
             }
         };
 
@@ -673,22 +656,10 @@
                 loadingIndicator.parentNode.removeChild(loadingIndicator);
             }
 
-            // Show result in modal
+            // NO MODAL WINDOWS - just debug messages
             if (totalMatches > 0) {
-                window.showModal('Highlights Added',
-                    `Found and highlighted "${searchText}" ${totalMatches} time(s) in the PDF.\n\n` +
-                    `Search was case-insensitive and ignored spaces.\n` +
-                    `Look for yellow highlights on all matches.`,
-                    false
-                );
-                window.showDebugMessage(`Total highlights added: ${totalHighlights} for ${totalMatches} match(es)`, 'info');
+                window.showDebugMessage(`Highlighted "${searchText}" ${totalMatches} time(s) in the PDF`, 'info');
             } else {
-                window.showModal('No Matches Found',
-                    `The text "${searchText}" was not found in this PDF.\n\n` +
-                    `Search was case-insensitive and ignored spaces.\n` +
-                    `Make sure the PDF contains the text "${searchText}".`,
-                    false
-                );
                 window.showDebugMessage(`No instances of "${searchText}" found (case-insensitive, spaces ignored)`, 'info');
             }
         }
