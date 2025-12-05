@@ -331,6 +331,10 @@
         const modalOkBtn = document.getElementById('modal-ok-btn');
         const modalCancelBtn = document.getElementById('modal-cancel-btn');
 
+        // FIXED: Store the current callback functions before they're cleared
+        let currentOkCallback = null;
+        let currentCancelCallback = null;
+
         window.showModal = (title, message, isError = true, showInput = false, onOk = null, onCancel = null) => {
             modalTitle.textContent = title;
             modalMessage.textContent = message;
@@ -342,6 +346,27 @@
                 modalCancelBtn.classList.remove('hidden');
                 modalOkBtn.textContent = 'Highlight'; // Change text for highlight action
 
+                // Store callbacks
+                currentOkCallback = onOk;
+                currentCancelCallback = onCancel;
+
+                // Set up button handlers
+                modalOkBtn.onclick = () => {
+                    // Get the input value BEFORE closing the modal
+                    const inputValue = highlightTextInput.value;
+                    window.closeModal();
+                    if (currentOkCallback) {
+                        currentOkCallback(inputValue);
+                    }
+                };
+
+                modalCancelBtn.onclick = () => {
+                    window.closeModal();
+                    if (currentCancelCallback) {
+                        currentCancelCallback();
+                    }
+                };
+
                 // Focus the input field
                 setTimeout(() => {
                     highlightTextInput.focus();
@@ -351,26 +376,21 @@
                 highlightTextInput.classList.add('hidden');
                 modalCancelBtn.classList.add('hidden');
                 modalOkBtn.textContent = 'OK'; // Default OK text
-            }
 
-            modalOkBtn.onclick = () => {
-                window.closeModal();
-                if (onOk) onOk(highlightTextInput.value);
-            };
-            modalCancelBtn.onclick = () => {
-                window.closeModal();
-                if (onCancel) onCancel();
-            };
+                // For non-input modals, use simple close
+                modalOkBtn.onclick = window.closeModal;
+                modalCancelBtn.onclick = window.closeModal;
+            }
 
             modal.classList.remove('hidden');
         };
 
         window.closeModal = () => {
             modal.classList.add('hidden');
-            highlightTextInput.value = ''; // Clear input on close
-            // Reset button click handlers to default or generic close
-            modalOkBtn.onclick = window.closeModal;
-            modalCancelBtn.onclick = window.closeModal;
+            // Don't clear input value here - it's cleared after callback runs
+            // Reset stored callbacks
+            currentOkCallback = null;
+            currentCancelCallback = null;
         };
 
         // --- Menu Functions ---
@@ -393,10 +413,10 @@
             return cleaned;
         }
 
-        // UPDATED: handleHighlightClick function - FIXED THE BUG
+        // UPDATED: handleHighlightClick function - FIXED THE INPUT VALUE ISSUE
         window.handleHighlightClick = () => {
             window.toggleMenu(); // Close the side menu
-            window.showModal('Highlight Text 0.53',
+            window.showModal('Highlight Text 0.5.4',
                 'Enter text to highlight across the script:\n\nNote: Spaces will be ignored in the search.',
                 false, true,
                 (text) => {
@@ -420,9 +440,14 @@
                         // Call the highlight function
                         renderHighlightsForText(activeHighlightText);
                     }
+
+                    // Clear the input field after processing
+                    highlightTextInput.value = '';
                 },
                 () => {
                     window.showDebugMessage("Highlight cancelled", 'info');
+                    // Clear the input field on cancel too
+                    highlightTextInput.value = '';
                 }
             );
         };
@@ -741,8 +766,6 @@
                     window.toggleMenu();
                 }
             });
-            // Ensure modal close button works
-            modalOkBtn.onclick = window.closeModal;
         });
 
     </script>
