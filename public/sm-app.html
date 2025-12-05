@@ -129,6 +129,21 @@
             padding: 10px;
             background: white;
         }
+
+        /* Debug info */
+        #debug-info {
+            position: fixed;
+            bottom: 10px;
+            left: 10px;
+            background: rgba(0,0,0,0.7);
+            color: white;
+            padding: 10px;
+            border-radius: 5px;
+            font-family: monospace;
+            font-size: 12px;
+            max-width: 300px;
+            z-index: 1000;
+        }
     </style>
     <!-- PDF.js library -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.11.338/pdf.min.js"></script>
@@ -138,13 +153,13 @@
 <body>
 
     <!-- Welcome Screen (shown initially) -->
-    <div id="welcome-screen" class="hidden">
+    <div id="welcome-screen">
         <div class="max-w-md mx-auto text-center">
             <h1 class="text-3xl font-bold text-gray-800 mb-4">Stage Manager Control</h1>
             <p class="text-gray-600 mb-8">Welcome to PlayScroller. Use the menu in the top right to set up your script and start a session.</p>
             <div class="bg-white p-6 rounded-xl shadow-lg">
                 <p class="text-gray-700 mb-4">Current User ID:</p>
-                <p id="user-id-display" class="font-mono text-sm bg-gray-100 px-4 py-2 rounded mb-6"></p>
+                <p id="user-id-display" class="font-mono text-sm bg-gray-100 px-4 py-2 rounded mb-6">Loading...</p>
                 <button id="start-with-url-btn" class="w-full py-3 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 font-medium">
                     Start with URL from QR Code
                 </button>
@@ -177,6 +192,7 @@
             <li><button id="set-pdf-url-btn">Set PDF URL...</button></li>
             <li><button id="show-qr-btn" class="hidden">Show Actor QR Code</button></li>
             <li><button id="reset-btn">Reset Session</button></li>
+            <li><button id="debug-btn">Debug Info</button></li>
         </ul>
     </div>
 
@@ -187,6 +203,7 @@
             <p class="text-gray-700 mb-4">Enter the public URL of your script PDF:</p>
             <input type="url" id="pdf-url-input" placeholder="e.g., https://drive.google.com/.../script.pdf"
                    class="mt-1 block w-full rounded-lg border-gray-300 shadow-sm p-3 border focus:border-indigo-500 focus:ring-indigo-500 mb-4">
+            <p class="text-sm text-gray-500 mb-4">For Google Drive links, use the "Share" button and get a direct download link.</p>
             <div class="flex justify-end space-x-4">
                 <button id="pdf-url-cancel" class="py-2 px-4 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300">Cancel</button>
                 <button id="pdf-url-ok" class="py-2 px-4 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700">Load PDF</button>
@@ -218,6 +235,12 @@
         </div>
     </div>
 
+    <!-- Debug Info Panel -->
+    <div id="debug-info" class="hidden">
+        <div id="debug-content"></div>
+        <button onclick="toggleDebug()" class="mt-2 text-xs bg-blue-500 text-white px-2 py-1 rounded">Toggle Debug</button>
+    </div>
+
     <script type="module">
         // Import the functions you need from the SDKs you need
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
@@ -230,7 +253,7 @@
           apiKey: "AIzaSyBG9pzEdllxWnZu0zYQMXqEFzJWNAVv6Lw",
           authDomain: "playscroller.firebaseapp.com",
           projectId: "playscroller",
-          storageBucket: "playscroller.appspot.com", // <<< CORRECTED STORAGEBUCKET
+          storageBucket: "playscroller.appspot.com",
           messagingSenderId: "86147104940",
           appId: "1:86147104940:web:f1bd908e1206795f9d1f09"
         };
@@ -243,9 +266,29 @@
         let pdfContainer;
         let currentSessionId = null;
         let currentPdfUrl = null;
+        let debugMessages = [];
 
         // Ensure PDF.js worker is set up
         pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.11.338/pdf.worker.min.js';
+
+        // Debug logging
+        function logDebug(message) {
+            const timestamp = new Date().toLocaleTimeString();
+            debugMessages.push(`[${timestamp}] ${message}`);
+            if (debugMessages.length > 20) debugMessages.shift();
+
+            const debugContent = document.getElementById('debug-content');
+            if (debugContent) {
+                debugContent.innerHTML = debugMessages.join('<br>');
+                debugContent.scrollTop = debugContent.scrollHeight;
+            }
+            console.log(message);
+        }
+
+        function toggleDebug() {
+            const debugPanel = document.getElementById('debug-info');
+            debugPanel.classList.toggle('hidden');
+        }
 
         // Function to get actor app URL from current SM app URL
         function getActorAppUrl() {
@@ -258,6 +301,25 @@
         // Generate a session ID
         function generateSessionId() {
             return 'SESS-' + Date.now().toString(36) + Math.random().toString(36).substring(2, 6).toUpperCase();
+        }
+
+        // Convert Google Drive view link to direct download link
+        function convertGoogleDriveLink(url) {
+            logDebug(`Converting Google Drive link: ${url}`);
+
+            // Pattern for Google Drive view links
+            const viewPattern = /drive\.google\.com\/file\/d\/([a-zA-Z0-9_-]+)/;
+            const match = url.match(viewPattern);
+
+            if (match) {
+                const fileId = match[1];
+                const directUrl = `https://drive.google.com/uc?export=download&id=${fileId}`;
+                logDebug(`Converted to direct download: ${directUrl}`);
+                return directUrl;
+            }
+
+            // If it's already a direct link or not Google Drive, return as-is
+            return url;
         }
 
         // Show/hide menu
@@ -286,6 +348,8 @@
             const actorAppUrl = getActorAppUrl();
             const actorSyncUrl = `${actorAppUrl}?session_id=${currentSessionId}&pdf_url=${encodeURIComponent(currentPdfUrl)}`;
 
+            logDebug(`QR Code URL: ${actorSyncUrl}`);
+
             // Update session ID display
             document.getElementById('session-id-display').textContent = `Session: ${currentSessionId}`;
 
@@ -312,6 +376,7 @@
         }
 
         function showError(title, message) {
+            logDebug(`Error: ${title} - ${message}`);
             document.getElementById('error-title').textContent = title;
             document.getElementById('error-message').textContent = message;
             document.getElementById('error-modal').classList.remove('hidden');
@@ -336,19 +401,25 @@
                 await signInAnonymously(auth);
                 userId = auth.currentUser?.uid || crypto.randomUUID();
                 document.getElementById('user-id-display').textContent = userId;
+                logDebug(`User ID: ${userId}`);
 
-                // Show welcome screen
-                document.getElementById('welcome-screen').classList.remove('hidden');
+                // Show menu button
                 document.getElementById('menu-button').classList.remove('hidden');
 
                 // Check for PDF URL in query parameters
                 const urlParams = new URLSearchParams(window.location.search);
                 const pdfUrlFromParam = urlParams.get('pdfurl') || urlParams.get('pdf_url');
 
+                logDebug(`URL params: ${window.location.search}`);
+                logDebug(`Found PDF URL param: ${pdfUrlFromParam}`);
+
                 if (pdfUrlFromParam) {
                     // Auto-start with URL from QR code
                     document.getElementById('welcome-screen').classList.add('hidden');
+                    logDebug(`Auto-starting with PDF URL: ${pdfUrlFromParam}`);
                     await startSession(pdfUrlFromParam);
+                } else {
+                    logDebug('No PDF URL parameter found, showing welcome screen');
                 }
 
             } catch (error) {
@@ -372,9 +443,16 @@
         }
 
         async function loadAndRenderPDF(pdfUrl) {
+            logDebug(`Loading PDF from: ${pdfUrl}`);
             document.getElementById('pdf-container').innerHTML = '<p id="loading-message" class="text-center py-12 text-gray-500">Loading PDF, please wait...</p>';
+            document.getElementById('pdf-container').classList.remove('hidden');
+
             try {
-                const pdf = await pdfjsLib.getDocument(pdfUrl).promise;
+                // Convert Google Drive link if needed
+                const finalPdfUrl = convertGoogleDriveLink(pdfUrl);
+                logDebug(`Final PDF URL: ${finalPdfUrl}`);
+
+                const pdf = await pdfjsLib.getDocument(finalPdfUrl).promise;
                 pdfDoc = pdf;
                 pdfContainer.innerHTML = ''; // Clear loading message
 
@@ -384,14 +462,14 @@
                     await renderPage(i, page);
                 }
 
-                // Show success message
-                console.log(`Successfully loaded PDF with ${pdf.numPages} pages`);
+                logDebug(`Successfully loaded PDF with ${pdf.numPages} pages`);
 
                 // Initial broadcast after loading
                 broadcastScrollState();
 
             } catch (error) {
                 console.error("PDF Loading Error:", error);
+                logDebug(`PDF Loading Error: ${error.message}`);
                 showError('PDF Loading Error', `Could not load PDF from URL. Check the URL and CORS settings. ${error.message}`);
                 pdfContainer.innerHTML = '<p id="loading-message" class="text-center py-12 text-gray-500">PDF loading failed.</p>';
                 pdfDoc = null;
@@ -411,6 +489,8 @@
 
             currentPdfUrl = pdfUrl;
             currentSessionId = generateSessionId();
+
+            logDebug(`Starting session: ${currentSessionId} with PDF: ${pdfUrl}`);
 
             // Create session metadata in Realtime Database
             const metadataRef = ref(rtdb, `sessions/${currentSessionId}/metadata`);
@@ -433,6 +513,8 @@
                 await set(metadataRef, sessionMetadata);
                 await set(viewStateRef, initialViewState);
 
+                logDebug(`Session created in Firebase: ${currentSessionId}`);
+
                 // Load and render PDF
                 await loadAndRenderPDF(pdfUrl);
 
@@ -443,10 +525,11 @@
                 // Hide welcome screen if still showing
                 document.getElementById('welcome-screen').classList.add('hidden');
 
-                console.log(`Session started: ${currentSessionId}`);
+                logDebug(`Session started successfully: ${currentSessionId}`);
 
             } catch (error) {
                 console.error("Session start failed:", error);
+                logDebug(`Session start failed: ${error.message}`);
                 showError('Session Failed', `Could not start session or write to Realtime Database. Error: ${error.message}`);
                 currentSessionId = null;
                 currentPdfUrl = null;
@@ -456,6 +539,7 @@
 
         // Reset session
         function resetSession() {
+            logDebug('Resetting session');
             currentSessionId = null;
             currentPdfUrl = null;
             pdfDoc = null;
@@ -552,10 +636,11 @@
                     timestamp: Date.now()
                 });
 
-                console.log(`Broadcasting: Page ${state.page} @ ${state.y_percent.toFixed(0)}%`);
+                logDebug(`Broadcasting: Page ${state.page} @ ${state.y_percent.toFixed(0)}%`);
 
             } catch (e) {
                 console.error("Broadcast failed:", e);
+                logDebug(`Broadcast failed: ${e.message}`);
             }
 
         }, 150); // Throttle to 150ms
@@ -570,6 +655,10 @@
         // --- Initial Setup ---
         document.addEventListener('DOMContentLoaded', () => {
             pdfContainer = document.getElementById('pdf-container');
+
+            // Set up debug toggle
+            window.toggleDebug = toggleDebug;
+
             initializeFirebase();
 
             // Set up event listeners
@@ -588,6 +677,11 @@
 
             document.getElementById('reset-btn').addEventListener('click', () => {
                 resetSession();
+            });
+
+            document.getElementById('debug-btn').addEventListener('click', () => {
+                window.toggleMenu();
+                toggleDebug();
             });
 
             // PDF URL modal buttons
