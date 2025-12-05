@@ -4,7 +4,7 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="fe1af6f4-92e1-4bdd-b2df-11bac74cf631" name="Changes" comment="Version 0.7.3 sm-app.html Read PDF, even from Google Drive URL">
+    <list default="true" id="fe1af6f4-92e1-4bdd-b2df-11bac74cf631" name="Changes" comment="Version 0.7.5 sm-app.html BIG QR CODE">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
@@ -442,7 +442,15 @@
       <option name="project" value="LOCAL" />
       <updated>1764969240665</updated>
     </task>
-    <option name="localTasksCounter" value="49" />
+    <task id="LOCAL-00049" summary="Version 0.7.5 sm-app.html BIG QR CODE">
+      <option name="closed" value="true" />
+      <created>1764970143324</created>
+      <option name="number" value="00049" />
+      <option name="presentableId" value="LOCAL-00049" />
+      <option name="project" value="LOCAL" />
+      <updated>1764970143324</updated>
+    </task>
+    <option name="localTasksCounter" value="50" />
     <servers />
   </component>
   <component name="Vcs.Log.Tabs.Properties">
@@ -457,7 +465,6 @@
     </option>
   </component>
   <component name="VcsManagerConfiguration">
-    <MESSAGE value="Version 0.3 actor-app.html Full screen, no scrolling, hamburger menu to highlight text" />
     <MESSAGE value="Version 0.4 actor-app.html setupTextLayer is removed, and renderHighlights now directly positions highlight div s" />
     <MESSAGE value="Version 0.4 actor-app.html Fix highlighting" />
     <MESSAGE value="Version 0.4 actor-app.html Test highlighting" />
@@ -482,6 +489,7 @@
     <MESSAGE value="Version 0.7.1 sm-app.html Read PDF, even from Google Drive URL" />
     <MESSAGE value="Version 0.7.2 sm-app.html Read PDF, even from Google Drive URL" />
     <MESSAGE value="Version 0.7.3 sm-app.html Read PDF, even from Google Drive URL" />
-    <option name="LAST_COMMIT_MESSAGE" value="Version 0.7.3 sm-app.html Read PDF, even from Google Drive URL" />
+    <MESSAGE value="Version 0.7.5 sm-app.html BIG QR CODE" />
+    <option name="LAST_COMMIT_MESSAGE" value="Version 0.7.5 sm-app.html BIG QR CODE" />
   </component>
 </project>
