@@ -57,7 +57,7 @@
             <input type="url" id="app-host-url" placeholder="Required for Actor Sync QR Code"
                    class="mt-1 block w-full rounded-lg border-gray-300 shadow-sm p-3 border focus:border-indigo-500 focus:ring-indigo-500">
 
-            <button id="start-session-btn" onclick="startSession()"
+            <button id="start-session-btn"
                     class="mt-4 w-full flex justify-center py-3 px-4 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition duration-150">
                 Start New Session & Load PDF
             </button>
@@ -79,7 +79,7 @@
         <!-- 3. PDF Viewer -->
         <div id="viewer-panel" class="bg-white p-4 rounded-xl shadow-lg hidden">
             <h2 class="text-xl font-semibold mb-3 text-gray-700">3. Script Viewer (Control)</h2>
-            <div id="pdf-container" onscroll="handleScroll()">
+            <div id="pdf-container">
                 <!-- PDF Canvases will be rendered here -->
                 <p id="loading-message" class="text-center py-12 text-gray-500">Please start a session to load the PDF.</p>
             </div>
@@ -90,7 +90,7 @@
             <div class="bg-white p-6 rounded-lg shadow-xl max-w-sm w-full">
                 <h3 id="modal-title" class="text-xl font-bold mb-4 text-red-600">Error</h3>
                 <p id="modal-message" class="text-gray-700 mb-6"></p>
-                <button onclick="closeModal()" class="w-full py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700">Close</button>
+                <button onclick="window.closeModal()" class="w-full py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700">Close</button>
             </div>
         </div>
 
@@ -98,11 +98,13 @@
 
     <script type="module">
         // Import the functions you need from the SDKs you need
-        // REMOVED import { initializeApp } from "firebase/app";
-        // TODO: Add SDKs for Firebase products that you want to use
-        // https://firebase.google.com/docs/web/setup#available-libraries
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        // *** IMPORTANT: Now importing Realtime Database functions ***
+        import { getDatabase, ref, set, update } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-database.js";
 
-        // Your web app's Firebase configuration
+        // --- Global Firebase Variables ---
+
         const firebaseConfig = {
           apiKey: "AIzaSyBG9pzEdllxWnZu0zYQMXqEFzJWNAVv6Lw",
           authDomain: "playscroller.firebaseapp.com",
@@ -111,6 +113,9 @@
           messagingSenderId: "86147104940",
           appId: "1:86147104940:web:f1bd908e1206795f9d1f09"
         };
+
+        // Initialize Firebase (the 'app' variable is now used by getDatabase and getAuth)
+        const app = initializeApp(firebaseConfig);
 
         // Renamed 'db' to 'rtdb' for Realtime Database
         let rtdb, auth, userId;
@@ -139,8 +144,9 @@
         async function initializeFirebase() {
             try {
                 // The check for firebaseConfig being empty is still good practice
-                if (Object.keys(firebaseConfig).length === 0 || !firebaseConfig.databaseURL) {
-                     showModal('Configuration Error', 'Firebase configuration or Realtime Database URL is missing. Cannot initialize real-time features.', true);
+                // Note: databaseURL might not be strictly needed for this check as it can be derived
+                if (!firebaseConfig.apiKey || Object.keys(firebaseConfig).length === 0) { // Check for apiKey explicitly
+                     showModal('Configuration Error', 'Firebase API Key is missing or Firebase configuration is empty. Cannot initialize.', true);
                      return;
                 }
 
@@ -218,7 +224,7 @@
         window.startSession = async () => {
             // Changed from 'db' to 'rtdb'
             if (!rtdb || !userId) {
-                showModal('System Error', 'Firebase Realtime Database not initialized. Please refresh.', true);
+                showModal('System Error', 'Firebase Realtime Database not initialized or User not authenticated. Please refresh.', true);
                 return;
             }
 
@@ -275,8 +281,8 @@
                     correctLevel: QRCode.CorrectLevel.H
                 });
 
-                // Attach scroll listener to the PDF container
-                pdfContainer.addEventListener('scroll', handleScroll);
+                // NO LONGER ATTACHING SCROLL LISTENER HERE -- moved to DOMContentLoaded
+                // pdfContainer.addEventListener('scroll', handleScroll);
 
             } catch (error) {
                 console.error("Session start failed:", error);
@@ -397,6 +403,10 @@
         document.addEventListener('DOMContentLoaded', () => {
             pdfContainer = document.getElementById('pdf-container');
             initializeFirebase();
+
+            // Attach event listeners for the Start Session button and PDF container scroll
+            document.getElementById('start-session-btn').addEventListener('click', window.startSession);
+            pdfContainer.addEventListener('scroll', window.handleScroll);
         });
 
     </script>

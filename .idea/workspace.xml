@@ -4,7 +4,7 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="fe1af6f4-92e1-4bdd-b2df-11bac74cf631" name="Changes" comment="Version 0.2 Fixing storageBucket">
+    <list default="true" id="fe1af6f4-92e1-4bdd-b2df-11bac74cf631" name="Changes" comment="Version 0.2 REMOVED import initializeApp  from firebaseapp">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/public/sm-app.html" beforeDir="false" afterPath="$PROJECT_DIR$/public/sm-app.html" afterDir="false" />
     </list>
@@ -203,7 +203,15 @@
       <option name="project" value="LOCAL" />
       <updated>1764894321581</updated>
     </task>
-    <option name="localTasksCounter" value="19" />
+    <task id="LOCAL-00019" summary="Version 0.2 REMOVED import initializeApp  from firebaseapp">
+      <option name="closed" value="true" />
+      <created>1764896216072</created>
+      <option name="number" value="00019" />
+      <option name="presentableId" value="LOCAL-00019" />
+      <option name="project" value="LOCAL" />
+      <updated>1764896216072</updated>
+    </task>
+    <option name="localTasksCounter" value="20" />
     <servers />
   </component>
   <component name="Vcs.Log.Tabs.Properties">
@@ -236,6 +244,7 @@
     <MESSAGE value="Version 0.2 Push again after uploading firebase.json" />
     <MESSAGE value="Version 0.2 Fixing Firebase cxn" />
     <MESSAGE value="Version 0.2 Fixing storageBucket" />
-    <option name="LAST_COMMIT_MESSAGE" value="Version 0.2 Fixing storageBucket" />
+    <MESSAGE value="Version 0.2 REMOVED import initializeApp  from firebaseapp" />
+    <option name="LAST_COMMIT_MESSAGE" value="Version 0.2 REMOVED import initializeApp  from firebaseapp" />
   </component>
 </project>
