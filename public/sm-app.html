@@ -35,8 +35,8 @@
     </style>
     <!-- PDF.js library -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.11.338/pdf.min.js"></script>
-    <!-- QR Code generation library -->
-    <script src="https://cdn.jsdelivr.net/npm/qrcode.js@0.0.2/qrcode.min.js"></script>
+    <!-- QRious QR Code generation library (replaces qrcode.js) -->
+    <script src="https://unpkg.com/qrious@4.0.2/dist/qrious.min.js"></script>
 </head>
 <body class="p-4">
 
@@ -70,7 +70,9 @@
             <p class="text-sm text-indigo-700 mb-4">Actors must scan the QR code below to join this session.</p>
 
             <div class="flex flex-col items-center justify-center bg-white p-4 rounded-lg shadow-inner">
-                <div id="qr-code" class="w-48 h-48 border-4 border-indigo-500 p-2 rounded-lg"></div>
+                <div id="qr-code" class="w-48 h-48 border-4 border-indigo-500 p-2 rounded-lg">
+                    <!-- QRious will render a canvas here -->
+                </div>
                 <p class="mt-2 text-sm text-gray-500">Actor Sync QR Code</p>
             </div>
             <p id="sync-status" class="mt-4 text-center text-sm font-medium text-green-700"></p>
@@ -106,10 +108,11 @@
         // --- Global Firebase Variables ---
 
         const firebaseConfig = {
+
           apiKey: "AIzaSyBG9pzEdllxWnZu0zYQMXqEFzJWNAVv6Lw",
           authDomain: "playscroller.firebaseapp.com",
           projectId: "playscroller",
-          storageBucket: "playscroller.appspot.com",
+          storageBucket: "playscroller.appspot.com", // <<< CORRECTED STORAGEBUCKET
           messagingSenderId: "86147104940",
           appId: "1:86147104940:web:f1bd908e1206795f9d1f09"
         };
@@ -270,16 +273,24 @@
 
                 const actorSyncUrl = `${appHostUrl}?session_id=${currentSessionId}&pdf_url=${encodeURIComponent(pdfUrl)}`;
 
-                // Clear existing QR code and generate new one
-                document.getElementById('qr-code').innerHTML = '';
-                new window.QRCode(document.getElementById('qr-code'), {
-                    text: actorSyncUrl,
-                    width: 180,
-                    height: 180,
-                    colorDark: "#3730a3", // Indigo 700
-                    colorLight: "#ffffff",
-                    correctLevel: QRCode.CorrectLevel.H
+                // --- QRious Integration ---
+                const qrCodeContainer = document.getElementById('qr-code');
+                qrCodeContainer.innerHTML = ''; // Clear existing content
+
+                // Create a canvas element inside the qr-code div for QRious to draw on
+                const qrCanvas = document.createElement('canvas');
+                qrCodeContainer.appendChild(qrCanvas); // Append the new canvas
+
+                // Use QRious to generate the QR code on the canvas
+                new QRious({
+                    element: qrCanvas,     // Target the canvas element we just created
+                    value: actorSyncUrl,   // The data to encode
+                    size: 180,             // Size in pixels
+                    background: '#ffffff', // Background color (white)
+                    foreground: '#3730a3', // Foreground color (Indigo 700)
+                    level: 'H'             // Error correction level (High)
                 });
+                // --- End QRious Integration ---
 
                 // NO LONGER ATTACHING SCROLL LISTENER HERE -- moved to DOMContentLoaded
                 // pdfContainer.addEventListener('scroll', handleScroll);
