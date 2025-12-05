@@ -425,7 +425,7 @@
         // UPDATED: handleHighlightClick function - MODAL CLOSES AFTER HIGHLIGHTING COMPLETES
         window.handleHighlightClick = () => {
             window.toggleMenu(); // Close the side menu
-            window.showModal('Highlight Text 0.5.5',
+            window.showModal('Highlight Text 0.5.6',
                 'Enter text to highlight across the script:\n\nNote: Spaces will be ignored in the search.',
                 false, true,
                 async (text) => { // Make callback async
@@ -660,11 +660,14 @@
                             const y = (viewport.height - transform[5]) * scale - textHeight;
 
                             // Calculate width and height
-                            const width = textItem.width * scale;
-                            const height = textHeight; // Use the calculated height
+                            const width = (textItem.width * scale) + 4; // Add 4px width
+                            const height = textHeight + 3; // Add 3px height
+
+                            // Adjust position to account for extra width (move 2px left)
+                            const adjustedX = x - 2; // Move left by 2px
 
                             // Set position and size
-                            highlightSpan.style.left = `${x}px`;
+                            highlightSpan.style.left = `${adjustedX}px`;
                             highlightSpan.style.top = `${y}px`;
                             highlightSpan.style.width = `${width}px`;
                             highlightSpan.style.height = `${height}px`;
