@@ -272,7 +272,7 @@
 
                 // Clear existing QR code and generate new one
                 document.getElementById('qr-code').innerHTML = '';
-                new QRCode(document.getElementById('qr-code'), {
+                new window.QRCode(document.getElementById('qr-code'), {
                     text: actorSyncUrl,
                     width: 180,
                     height: 180,
