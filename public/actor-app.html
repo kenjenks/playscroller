@@ -206,7 +206,6 @@
         </button>
         <ul>
             <li><button id="highlight-menu-item" onclick="window.handleHighlightClick()">Highlight Text...</button></li>
-            <li><button onclick="window.highlightAudience()">Highlight "AUDIENCE"</button></li>
             <li><button id="exit-menu-item" onclick="window.exitApp()">Exit</button></li>
         </ul>
     </div>
@@ -312,17 +311,6 @@
             }
         };
 
-        // Function to highlight "AUDIENCE" specifically - NO MODAL
-        window.highlightAudience = () => {
-            window.toggleMenu(); // Close menu
-            activeHighlightText = "AUDIENCE";
-            window.showDebugMessage(`Highlighting "${activeHighlightText}"...`, 'info');
-            // Clear existing highlights first
-            document.querySelectorAll('.highlight').forEach(el => el.remove());
-            // Highlight without showing modal
-            renderHighlightsForText(activeHighlightText);
-        };
-
         // --- UI Utility Functions ---
         const modal = document.getElementById('modal');
         const modalTitle = document.getElementById('modal-title');
@@ -425,8 +413,8 @@
         // UPDATED: handleHighlightClick function - MODAL CLOSES AFTER HIGHLIGHTING COMPLETES
         window.handleHighlightClick = () => {
             window.toggleMenu(); // Close the side menu
-            window.showModal('Highlight Text 0.5.6',
-                'Enter text to highlight across the script:\n\nNote: Spaces will be ignored in the search.',
+            window.showModal('Highlight Text 0.5.8',
+                'Enter text to highlight across the script:',
                 false, true,
                 async (text) => { // Make callback async
                     window.showDebugMessage(`User entered text: "${text}"`, 'info');
@@ -635,8 +623,8 @@
 
                     // Search for text in this page (case-insensitive)
                     for (const textItem of textContent.items) {
-                        // Clean the PDF text (remove spaces for comparison)
-                        const pdfTextCleaned = textItem.str.replace(/\s+/g, '');
+                        // Clean the PDF text (remove beginning and end spaces for comparison)
+                        const pdfTextCleaned = textItem.str.trim();
 
                         if (pdfTextCleaned.toLowerCase().includes(searchTextLower)) {
                             window.showDebugMessage(`Found match: "${textItem.str}" on page ${pageNum}`, 'info');
