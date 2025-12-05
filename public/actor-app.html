@@ -3,58 +3,187 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Actor App</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"> <!-- UPDATED: Prevent user zoom -->
+    <title>Actor App - PlayScroller</title>
     <!-- Tailwind CSS for mobile-first, responsive design -->
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        body { font-family: 'Inter', sans-serif; background-color: #f7f7f7; }
-        #pdf-container {
+        html, body {
+            margin: 0;
+            padding: 0;
             width: 100%;
-            max-width: 800px;
-            margin: 0 auto;
-            border: 2px solid #334155;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-            background-color: white;
-            overflow-y: scroll;
-            height: 90vh; /* Make it taller for actors */
+            height: 100%;
+            overflow: hidden; /* Prevent body scroll */
+            font-family: 'Inter', sans-serif;
+            background-color: #f7f7f7;
         }
+
+        #pdf-viewer-wrapper {
+            position: relative; /* For positioning text layer and highlights */
+            width: 100%;
+            height: 100%; /* Take full available space */
+            overflow-y: hidden; /* UPDATED: Disable manual scrolling */
+            scroll-behavior: smooth; /* Smooth scrolling for programmatic jumps */
+        }
+
         canvas {
             display: block;
             margin: 0 auto;
+            /* Optional: Add a subtle shadow to separate pages visually */
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            margin-bottom: 8px; /* Space between pages */
+        }
+
+        /* --- Hamburger Menu Styles --- */
+        #menu-button {
+            position: fixed;
+            top: 1rem;
+            right: 1rem;
+            z-index: 1000;
+            background-color: rgba(0, 0, 0, 0.6);
+            color: white;
+            border-radius: 9999px; /* circle */
+            padding: 0.75rem;
+            cursor: pointer;
+            transition: background-color 0.2s;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.3);
+        }
+        #menu-button:hover {
+            background-color: rgba(0, 0, 0, 0.8);
+        }
+
+        #side-menu {
+            position: fixed;
+            top: 0;
+            right: 0;
+            width: 250px;
+            height: 100%;
+            background-color: #fff;
+            box-shadow: -4px 0 10px rgba(0,0,0,0.1);
+            transform: translateX(100%);
+            transition: transform 0.3s ease-out;
+            z-index: 999;
+            padding: 1rem;
+            display: flex;
+            flex-direction: column;
+        }
+        #side-menu.open {
+            transform: translateX(0);
+        }
+        #side-menu ul {
+            list-style: none;
+            padding: 0;
+            margin: 1rem 0;
+            flex-grow: 1; /* Push close button to bottom if menu items are few */
+        }
+        #side-menu li {
+            margin-bottom: 0.75rem;
+        }
+        #side-menu button {
+            width: 100%;
+            padding: 0.75rem;
+            background-color: #f3f4f6; /* Light gray */
+            border-radius: 0.5rem;
+            text-align: left;
+            font-size: 1rem;
+            color: #1f2937; /* Dark gray */
+            border: none;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+        #side-menu button:hover {
+            background-color: #e5e7eb; /* Lighter gray */
+        }
+
+        /* --- PDF.js Text Layer & Highlight Styles --- */
+        .textLayer {
+            position: absolute;
+            left: 0;
+            top: 0;
+            right: 0;
+            bottom: 0;
+            overflow: hidden;
+            opacity: 1; /* For visibility */
+            line-height: 1;
+            /* Adjust text selection color if needed */
+            user-select: text;
+            pointer-events: none; /* Make text layer transparent to mouse events */
+        }
+        /* Specific styling for the text within the layer */
+        .textLayer > div {
+            color: transparent; /* Hide original text to show highlight */
+            position: absolute;
+            white-space: pre;
+            cursor: text;
+            transform-origin: 0% 0%;
+        }
+
+        /* Custom highlight styling */
+        .highlight {
+            position: absolute;
+            background-color: rgba(255, 255, 0, 0.5); /* Semi-transparent yellow */
+            pointer-events: none; /* Allow interaction with elements beneath */
+            z-index: 10; /* Ensure it's above textLayer but below UI */
+        }
+        /* Ensure highlight doesn't block underlying text layer interactions */
+        .textLayer > .highlight {
+            background-color: rgba(255, 255, 0, 0.5);
+        }
+
+        /* --- Modal for Highlight Input --- */
+        #highlight-modal {
+            background-color: rgba(0, 0, 0, 0.7);
         }
     </style>
     <!-- PDF.js library -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.11.338/pdf.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.11.338/pdf.worker.min.js"></script> <!-- Worker also needed -->
 </head>
-<body class="p-4">
+<body class="p-0"> <!-- Remove default padding -->
 
-    <div id="main-ui" class="max-w-4xl mx-auto space-y-6">
-
-        <h1 class="text-3xl font-bold text-gray-800 border-b pb-2 mb-4">Actor View</h1>
-        <p class="text-sm text-gray-600">User ID: <span id="user-id-display" class="font-mono text-xs bg-gray-200 px-2 py-1 rounded">Loading...</span></p>
-        <p class="text-lg font-medium text-indigo-600 mb-2">Connected to Session: <span id="session-id-display" class="font-mono text-xl bg-indigo-200 px-3 py-1 rounded-md">Not Connected</span></p>
-        <p class="text-sm text-indigo-700 mb-4">PDF: <span id="pdf-url-display" class="font-mono text-xs bg-gray-200 px-2 py-1 rounded">Loading...</span></p>
-
-        <!-- 3. PDF Viewer -->
-        <div id="viewer-panel" class="bg-white p-4 rounded-xl shadow-lg">
-            <h2 class="text-xl font-semibold mb-3 text-gray-700">Script Viewer</h2>
-            <div id="pdf-container">
-                <!-- PDF Canvases will be rendered here -->
-                <p id="loading-message" class="text-center py-12 text-gray-500">Connecting to session and loading PDF...</p>
-            </div>
-        </div>
-
-        <!-- Utility for error/message modal (Non-alert) -->
-        <div id="modal" class="fixed inset-0 bg-gray-600 bg-opacity-50 hidden items-center justify-center">
-            <div class="bg-white p-6 rounded-lg shadow-xl max-w-sm w-full">
-                <h3 id="modal-title" class="text-xl font-bold mb-4 text-red-600">Error</h3>
-                <p id="modal-message" class="text-gray-700 mb-6"></p>
-                <button onclick="window.closeModal()" class="w-full py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700">Close</button>
-            </div>
-        </div>
-
+    <!-- Main Content Area - PDF Viewer -->
+    <div id="pdf-viewer-wrapper">
+        <!-- PDF Canvases and text layers will be rendered here -->
+        <p id="loading-message" class="text-center py-12 text-gray-500 text-lg">Connecting to session and loading PDF...</p>
     </div>
+
+    <!-- Hamburger Menu Button -->
+    <button id="menu-button">
+        <!-- Hamburger Icon (SVG for crispness) -->
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h16" />
+        </svg>
+    </button>
+
+    <!-- Side Menu Panel -->
+    <div id="side-menu">
+        <button class="self-end p-2 bg-transparent text-gray-500 hover:text-gray-800" onclick="window.toggleMenu()">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+        </button>
+        <ul>
+            <li><button id="highlight-menu-item" onclick="window.handleHighlightClick()">Highlight...</button></li>
+            <li><button id="exit-menu-item" onclick="window.exitApp()">Exit</button></li>
+        </ul>
+    </div>
+
+
+    <!-- Generic Modal for Highlight Input / Errors -->
+    <div id="modal" class="fixed inset-0 bg-gray-600 bg-opacity-50 hidden items-center justify-center z-50">
+        <div class="bg-white p-6 rounded-lg shadow-xl max-w-sm w-full">
+            <h3 id="modal-title" class="text-xl font-bold mb-4 text-gray-800"></h3>
+            <p id="modal-message" class="text-gray-700 mb-6"></p>
+            <!-- Highlight Input specific elements -->
+            <input type="text" id="highlight-text-input" placeholder="Enter text to highlight"
+                   class="mt-1 block w-full rounded-lg border-gray-300 shadow-sm p-3 border focus:border-indigo-500 focus:ring-indigo-500 hidden">
+            <div id="modal-buttons" class="flex justify-end space-x-4 mt-6">
+                <button id="modal-cancel-btn" class="py-2 px-4 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300 hidden">Cancel</button>
+                <button id="modal-ok-btn" class="py-2 px-4 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700">OK</button>
+            </div>
+        </div>
+    </div>
+
 
     <script type="module">
         // Import the functions you need from the SDKs you need
@@ -77,31 +206,99 @@
 
         let rtdb, auth, userId;
         let pdfDoc = null;
-        let pdfContainer;
+        let pdfViewerWrapper; // Renamed for clarity - this is the scrollable container
         let currentSessionId = null;
         let currentPdfUrl = null;
+        let activeHighlightText = ""; // Stores the text currently being highlighted
 
         // Ensure PDF.js worker is set up
         pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.11.338/pdf.worker.min.js';
 
-        // Helper function for modal display (instead of alert)
-        window.showModal = (title, message, isError = true) => {
-            const modal = document.getElementById('modal');
-            document.getElementById('modal-title').textContent = title;
-            document.getElementById('modal-message').textContent = message;
-            document.getElementById('modal-title').className = isError ? 'text-xl font-bold mb-4 text-red-600' : 'text-xl font-bold mb-4 text-green-600';
-            modal.style.display = 'flex';
+
+        // --- UI Utility Functions ---
+        const modal = document.getElementById('modal');
+        const modalTitle = document.getElementById('modal-title');
+        const modalMessage = document.getElementById('modal-message');
+        const highlightTextInput = document.getElementById('highlight-text-input');
+        const modalOkBtn = document.getElementById('modal-ok-btn');
+        const modalCancelBtn = document.getElementById('modal-cancel-btn');
+
+        window.showModal = (title, message, isError = true, showInput = false, onOk = null, onCancel = null) => {
+            modalTitle.textContent = title;
+            modalMessage.textContent = message;
+            modalTitle.className = isError ? 'text-xl font-bold mb-4 text-red-600' : 'text-xl font-bold mb-4 text-green-600';
+
+            if (showInput) {
+                highlightTextInput.value = activeHighlightText; // Pre-fill with current highlight
+                highlightTextInput.classList.remove('hidden');
+                modalCancelBtn.classList.remove('hidden');
+                modalOkBtn.textContent = 'Highlight'; // Change text for highlight action
+            } else {
+                highlightTextInput.classList.add('hidden');
+                modalCancelBtn.classList.add('hidden');
+                modalOkBtn.textContent = 'OK'; // Default OK text
+            }
+
+            modalOkBtn.onclick = () => {
+                window.closeModal();
+                if (onOk) onOk(highlightTextInput.value);
+            };
+            modalCancelBtn.onclick = () => {
+                window.closeModal();
+                if (onCancel) onCancel();
+            };
+
+            modal.classList.remove('hidden');
         };
 
         window.closeModal = () => {
-            document.getElementById('modal').style.display = 'none';
+            modal.classList.add('hidden');
+            highlightTextInput.value = ''; // Clear input on close
+            // Reset button click handlers to default or generic close
+            modalOkBtn.onclick = window.closeModal;
+            modalCancelBtn.onclick = window.closeModal;
+        };
+
+        // --- Menu Functions ---
+        const menuButton = document.getElementById('menu-button');
+        const sideMenu = document.getElementById('side-menu');
+
+        window.toggleMenu = () => {
+            sideMenu.classList.toggle('open');
+            menuButton.style.display = sideMenu.classList.contains('open') ? 'none' : 'block'; // Hide button when menu is open
+        };
+
+        window.handleHighlightClick = () => {
+            window.toggleMenu(); // Close the side menu
+            window.showModal('Highlight Text', 'Enter text to highlight across the script:', false, true,
+                (text) => {
+                    activeHighlightText = text.trim();
+                    // If text is cleared, remove highlights; otherwise, re-render
+                    if (activeHighlightText === "") {
+                        document.querySelectorAll('.highlight').forEach(el => el.remove());
+                    } else {
+                        renderHighlights(); // Re-render all pages with new highlight
+                    }
+                },
+                () => { /* Cancelled, do nothing */ }
+            );
+        };
+
+        window.exitApp = () => {
+            if (window.opener) {
+                window.close();
+            } else {
+                window.showModal('Exit App', 'You can close this tab/window manually.', false);
+                // Alternatively, redirect to a safe landing page for the actor:
+                // window.location.href = 'https://playscroller.web.app/';
+            }
         };
 
         // --- Core App Initialization ---
         async function initializeFirebase() {
             try {
                 if (!firebaseConfig.apiKey || Object.keys(firebaseConfig).length === 0) {
-                     showModal('Configuration Error', 'Firebase API Key is missing or Firebase configuration is empty. Cannot initialize.', true);
+                     window.showModal('Configuration Error', 'Firebase API Key is missing or Firebase configuration is empty. Cannot initialize.', true);
                      return;
                 }
 
@@ -110,7 +307,7 @@
 
                 await signInAnonymously(auth);
                 userId = auth.currentUser?.uid || crypto.randomUUID();
-                document.getElementById('user-id-display').textContent = userId;
+                // User ID is no longer displayed explicitly in UI, but available for internal use
 
                 // Extract session_id and pdf_url from QR code URL
                 const urlParams = new URLSearchParams(window.location.search);
@@ -118,7 +315,7 @@
                 const pdfUrlFromUrl = urlParams.get('pdf_url');
 
                 if (!sessionIdFromUrl || !pdfUrlFromUrl) {
-                    showModal('Connection Error', 'Missing Session ID or PDF URL in QR code link. Please scan the Stage Manager\'s QR code.', true);
+                    window.showModal('Connection Error', 'Missing Session ID or PDF URL in QR code link. Please scan the Stage Manager\'s QR code.', true);
                     document.getElementById('loading-message').textContent = 'Error: Missing session details.';
                     return;
                 }
@@ -126,9 +323,7 @@
                 currentSessionId = sessionIdFromUrl;
                 currentPdfUrl = pdfUrlFromUrl;
 
-                document.getElementById('session-id-display').textContent = currentSessionId;
-                document.getElementById('pdf-url-display').textContent = currentPdfUrl;
-
+                document.getElementById('loading-message').textContent = `Connected to session ${currentSessionId}. Loading PDF...`;
 
                 // Load and render PDF first
                 await loadAndRenderPDF(currentPdfUrl);
@@ -138,14 +333,15 @@
 
             } catch (error) {
                 console.error("Firebase initialization failed:", error);
-                showModal('Initialization Failed', `Could not initialize Firebase: ${error.message}`, true);
+                window.showModal('Initialization Failed', `Could not initialize Firebase: ${error.message}`, true);
                 document.getElementById('loading-message').textContent = 'Error: Firebase initialization failed.';
             }
         }
 
-        // --- PDF Rendering Functions (Same as SM app) ---
+        // --- PDF Rendering Functions ---
         async function renderPage(pageNumber, pdfPage) {
-            const viewport = pdfPage.getViewport({ scale: 1.5 });
+            // Scale to fit width of the viewer wrapper (which is 100vw)
+            const viewport = pdfPage.getViewport({ scale: pdfViewerWrapper.clientWidth / pdfPage.getViewport({ scale: 1 }).width });
             const canvas = document.createElement('canvas');
             const context = canvas.getContext('2d');
             canvas.height = viewport.height;
@@ -153,16 +349,47 @@
             canvas.id = `pdf-page-${pageNumber}`;
             canvas.setAttribute('data-page', pageNumber);
 
+            const pageDiv = document.createElement('div');
+            pageDiv.id = `page-div-${pageNumber}`;
+            pageDiv.style.position = 'relative'; // For positioning text layer/highlights
+            pageDiv.style.width = `${viewport.width}px`;
+            pageDiv.style.height = `${viewport.height}px`;
+            pageDiv.classList.add('pdf-page-wrapper'); // Custom class for styling if needed
+
+            pageDiv.appendChild(canvas);
+            pdfViewerWrapper.appendChild(pageDiv);
+
             await pdfPage.render({ canvasContext: context, viewport: viewport }).promise;
-            pdfContainer.appendChild(canvas);
+
+            // Generate text layer for highlighting
+            await setupTextLayer(pdfPage, pageDiv, viewport);
+        }
+
+        async function setupTextLayer(pdfPage, pageDiv, viewport) {
+            const textContent = await pdfPage.getTextContent();
+            const textLayerDiv = document.createElement('div');
+            textLayerDiv.className = 'textLayer';
+            textLayerDiv.style.width = `${viewport.width}px`;
+            textLayerDiv.style.height = `${viewport.height}px`;
+            pageDiv.appendChild(textLayerDiv);
+
+            // Using PDF.js built-in TextLayerBuilder for robust text selection and positioning
+            const textLayer = new pdfjsLib.TextLayerBuilder({
+                textLayerDiv: textLayerDiv,
+                viewport: viewport,
+                pageIndex: pdfPage.pageIndex
+            });
+
+            textLayer.setTextContent(textContent);
+            textLayer.render();
         }
 
         async function loadAndRenderPDF(pdfUrl) {
-            document.getElementById('pdf-container').innerHTML = '<p id="loading-message" class="text-center py-12 text-gray-500">Loading PDF, please wait...</p>';
+            pdfViewerWrapper.innerHTML = '<p id="loading-message" class="text-center py-12 text-gray-500 text-lg">Loading PDF, please wait...</p>';
             try {
                 const pdf = await pdfjsLib.getDocument(pdfUrl).promise;
                 pdfDoc = pdf;
-                document.getElementById('pdf-container').innerHTML = ''; // Clear loading message
+                pdfViewerWrapper.innerHTML = ''; // Clear loading message
 
                 // Render all pages
                 for (let i = 1; i <= pdf.numPages; i++) {
@@ -170,22 +397,122 @@
                     await renderPage(i, page);
                 }
 
+                // After rendering all pages, apply initial highlights
+                renderHighlights();
+
                 // Initial scroll to top
-                pdfContainer.scrollTop = 0;
+                pdfViewerWrapper.scrollTop = 0;
 
             } catch (error) {
                 console.error("PDF Loading Error:", error);
-                showModal('PDF Loading Error', `Could not load PDF from URL. Check the URL and CORS settings. ${error.message}`, true);
-                document.getElementById('pdf-container').innerHTML = '<p id="loading-message" class="text-center py-12 text-gray-500">PDF loading failed.</p>';
+                window.showModal('PDF Loading Error', `Could not load PDF from URL. Check the URL and CORS settings. ${error.message}`, true);
+                pdfViewerWrapper.innerHTML = '<p id="loading-message" class="text-center py-12 text-gray-500 text-lg">PDF loading failed.</p>';
                 pdfDoc = null; // Reset document
             }
         }
+
+
+        // --- Highlighting Logic ---
+        async function renderHighlights() {
+            // Clear all existing highlights before re-rendering
+            document.querySelectorAll('.highlight').forEach(el => el.remove());
+
+            if (!pdfDoc || !activeHighlightText) {
+                return; // No PDF or no text to highlight
+            }
+
+            const searchQueue = [];
+            const searchTextLower = activeHighlightText.toLowerCase();
+
+            for (let i = 1; i <= pdfDoc.numPages; i++) {
+                searchQueue.push(async () => {
+                    const page = await pdfDoc.getPage(i);
+                    const textContent = await page.getTextContent();
+                    const pageDiv = document.getElementById(`page-div-${i}`);
+
+                    if (!pageDiv) return;
+
+                    const textItems = textContent.items;
+
+                    // Reconstruct text for searching (simple way, can be more robust for complex PDFs)
+                    let fullText = textItems.map(item => item.str).join('');
+                    let matchIndex = fullText.toLowerCase().indexOf(searchTextLower);
+
+                    while (matchIndex !== -1) {
+                        let charIndex = 0; // Tracks global character index in fullText for positioning
+                        let highlightRects = []; // Store rectangles for current match
+
+                        // Find the bounding boxes for each segment of the match
+                        for (let j = 0; j < textItems.length; j++) {
+                            const item = textItems[j];
+                            const itemText = item.str;
+
+                            // If this item contains part of the match
+                            if (charIndex + itemText.length > matchIndex && charIndex < matchIndex + searchTextLower.length) {
+                                // Calculate start and end within this item
+                                const startInItem = Math.max(0, matchIndex - charIndex);
+                                const endInItem = Math.min(itemText.length, matchIndex + searchTextLower.length - charIndex);
+
+                                // Create a dummy text element to get precise character width in PDF.js TextLayer
+                                const dummyTextDiv = document.createElement('span');
+                                dummyTextDiv.textContent = itemText.substring(0, startInItem);
+                                document.body.appendChild(dummyTextDiv);
+                                const startWidth = dummyTextDiv.getBoundingClientRect().width;
+                                dummyTextDiv.textContent = itemText.substring(0, endInItem);
+                                const endWidth = dummyTextDiv.getBoundingClientRect().width;
+                                document.body.removeChild(dummyTextDiv);
+
+                                // Transform coordinates from PDF.js item matrix
+                                const viewport = page.getViewport({ scale: pdfViewerWrapper.clientWidth / page.getViewport({ scale: 1 }).width });
+                                const transform = pdfjsLib.Util.transform(viewport.transform, item.transform);
+
+                                const [x1, y1] = pdfjsLib.Util.applyTransform([item.x, item.y], transform);
+                                const [x2, y2] = pdfjsLib.Util.applyTransform([item.x + item.width, item.y + item.height], transform);
+
+                                // Simplified: Use the item's overall bounding box for the highlight.
+                                // A truly pixel-perfect highlight for partial words is significantly more complex
+                                // and often requires interacting directly with PDF.js's text layer DOM elements
+                                // after they are rendered, or re-rendering them with custom spans.
+
+                                highlightRects.push({
+                                    left: item.transform[4] * viewport.scale + viewport.offsetX,
+                                    top: item.transform[5] * viewport.scale + viewport.offsetY,
+                                    width: item.width * viewport.scale,
+                                    height: item.height * viewport.scale
+                                });
+                            }
+                            charIndex += itemText.length;
+                        }
+
+                        // Create and append highlight spans
+                        highlightRects.forEach(rect => {
+                            const highlightSpan = document.createElement('div');
+                            highlightSpan.className = 'highlight';
+                            highlightSpan.style.left = `${rect.left}px`;
+                            highlightSpan.style.top = `${rect.top}px`;
+                            highlightSpan.style.width = `${rect.width}px`;
+                            highlightSpan.style.height = `${rect.height}px`;
+                            pageDiv.appendChild(highlightSpan);
+                        });
+
+                        // Find next match
+                        matchIndex = fullText.toLowerCase().indexOf(searchTextLower, matchIndex + 1);
+                    }
+                });
+            }
+
+            // Execute search and highlight for each page sequentially
+            for (const task of searchQueue) {
+                await task();
+            }
+        }
+
 
         // --- Real-Time Synchronization (Actor Listener) ---
         function listenForScrollState() {
             if (!currentSessionId || !rtdb) {
                 console.error("Cannot listen for scroll state: Session ID or RTDB not initialized.");
-                showModal('Real-time Error', 'Cannot connect to session. Realtime Database not ready.', true);
+                window.showModal('Real-time Error', 'Cannot connect to session. Realtime Database not ready.', true);
                 return;
             }
 
@@ -196,40 +523,50 @@
                 if (data) {
                     const targetPage = data.page;
                     const targetYPercent = data.y_percent;
-
-                    // Implement smooth scrolling
                     scrollToPageAndPosition(targetPage, targetYPercent);
                 }
             }, (error) => {
                 console.error("Error listening to Realtime Database:", error);
-                showModal('Real-time Error', `Failed to receive real-time updates: ${error.message}`, true);
+                window.showModal('Real-time Error', `Failed to receive real-time updates: ${error.message}`, true);
             });
         }
 
         // --- Scrolling Logic for Actor App ---
         function scrollToPageAndPosition(pageNumber, yPercent) {
-            if (!pdfDoc || !pdfContainer) return;
+            if (!pdfDoc || !pdfViewerWrapper) return;
 
-            const targetCanvas = document.getElementById(`pdf-page-${pageNumber}`);
+            const targetPageDiv = document.getElementById(`page-div-${pageNumber}`); // Target the page wrapper div
 
-            if (targetCanvas) {
-                const targetScrollY = targetCanvas.offsetTop + (targetCanvas.offsetHeight * (yPercent / 100));
+            if (targetPageDiv) {
+                // Calculate target Y position relative to the start of the page
+                const targetScrollY = targetPageDiv.offsetTop + (targetPageDiv.clientHeight * (yPercent / 100));
 
-                // Implement smooth scroll if desired
-                pdfContainer.scrollTo({
+                pdfViewerWrapper.scrollTo({
                     top: targetScrollY,
                     behavior: 'smooth'
-                    // You might need to adjust duration or curve if 'smooth' isn't smooth enough
                 });
             } else {
-                console.warn(`Target canvas for page ${pageNumber} not found.`);
+                console.warn(`Target page div for page ${pageNumber} not found.`);
             }
         }
 
         // --- Initial Setup ---
         document.addEventListener('DOMContentLoaded', () => {
-            pdfContainer = document.getElementById('pdf-container');
+            pdfViewerWrapper = document.getElementById('pdf-viewer-wrapper'); // Our main scrollable div
             initializeFirebase();
+
+            // Attach event listener for menu button
+            menuButton.addEventListener('click', window.toggleMenu);
+            // Close menu if click outside (basic implementation)
+            document.addEventListener('click', (event) => {
+                if (sideMenu.classList.contains('open') &&
+                    !sideMenu.contains(event.target) &&
+                    !menuButton.contains(event.target)) {
+                    window.toggleMenu();
+                }
+            });
+            // Ensure modal close button works
+            modalOkBtn.onclick = window.closeModal;
         });
 
     </script>
