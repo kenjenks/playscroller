@@ -38,14 +38,35 @@
             display: none; /* Chrome, Safari, Opera */
         }
 
+        /* Wrapper for each PDF page (canvas + highlight overlay) */
+        .pdf-page-wrapper {
+            position: relative; /* Crucial for absolute positioning of canvas and overlay */
+            margin: 0 auto 8px auto; /* Centered, with bottom margin */
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1); /* Subtle shadow for visual separation */
+            display: block; /* Ensure it takes up full width for centering */
+        }
 
         canvas {
             display: block;
-            margin: 0 auto;
-            /* Optional: Add a subtle shadow to separate pages visually */
-            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-            margin-bottom: 8px; /* Space between pages */
+            margin: 0; /* Managed by parent .pdf-page-wrapper */
+            position: absolute; /* Positioned within .pdf-page-wrapper */
+            top: 0;
+            left: 0;
+            z-index: 1; /* Ensure canvas is below overlay */
         }
+
+        /* This is the new container for highlights */
+        .highlight-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 2; /* Crucial: ensures it's above the canvas */
+            pointer-events: none; /* Allows interaction with elements beneath */
+            overflow: hidden; /* Prevent highlights from spilling out */
+        }
+
 
         /* --- Hamburger Menu Styles --- */
         #menu-button {
@@ -114,7 +135,7 @@
             position: absolute;
             background-color: rgba(255, 255, 0, 0.5); /* Semi-transparent yellow */
             pointer-events: none; /* Allow interaction with elements beneath */
-            z-index: 10; /* Ensure it's above PDF, below UI */
+            /* Z-index is handled by its parent .highlight-overlay */
         }
 
         /* --- Modal for Highlight Input --- */
@@ -341,15 +362,21 @@
             canvas.width = viewport.width;
             canvas.id = `pdf-page-${pageNumber}`;
             canvas.setAttribute('data-page', pageNumber);
+            // No absolute positioning here, will be handled by parent for full width
 
             const pageDiv = document.createElement('div');
             pageDiv.id = `page-div-${pageNumber}`;
-            pageDiv.style.position = 'relative'; // For positioning highlight divs
-            pageDiv.style.width = `${viewport.width}px`;
-            pageDiv.style.height = `${viewport.height}px`;
-            pageDiv.classList.add('pdf-page-wrapper'); // Custom class for styling if needed
+            pageDiv.classList.add('pdf-page-wrapper'); // Add this class for consistent styling
+            pageDiv.style.width = `${viewport.width}px`; // Explicit width to ensure centering and context
+            pageDiv.style.height = `${viewport.height}px`; // Explicit height
+
+            // Create the highlight overlay
+            const highlightOverlay = document.createElement('div');
+            highlightOverlay.className = 'highlight-overlay';
+            highlightOverlay.id = `highlight-overlay-${pageNumber}`; // Give it an ID for targeting
 
             pageDiv.appendChild(canvas);
+            pageDiv.appendChild(highlightOverlay); // Append overlay AFTER canvas for z-index
             pdfViewerWrapper.appendChild(pageDiv);
 
             await pdfPage.render({ canvasContext: context, viewport: viewport }).promise;
@@ -388,7 +415,7 @@
         }
 
 
-        // --- Highlighting Logic (TEMPORARY STATIC TEST) ---
+        // --- Highlighting Logic (TEMPORARY STATIC TEST V2 - with Highlight Overlay) ---
         async function renderHighlights() {
             // Clear all existing highlights before re-rendering
             document.querySelectorAll('.highlight').forEach(el => el.remove());
@@ -397,79 +424,26 @@
                 return; // No PDF loaded yet
             }
 
-            // --- TEMPORARY TEST: Place a fixed rectangle on page 1 ---
-            const pageDiv = document.getElementById(`page-div-1`); // Target the first page
-            if (pageDiv) {
+            // --- TEMPORARY TEST: Place a fixed rectangle on page 1's highlight overlay ---
+            const highlightOverlayForPage1 = document.getElementById(`highlight-overlay-1`); // Target the first page's overlay
+            if (highlightOverlayForPage1) {
                 const highlightSpan = document.createElement('div');
                 highlightSpan.className = 'highlight';
 
-                // Fixed position for testing
+                // Fixed position for testing (relative to the overlay)
                 highlightSpan.style.left = `50px`;
                 highlightSpan.style.top = `50px`;
                 highlightSpan.style.width = `200px`;
                 highlightSpan.style.height = `30px`;
 
-                pageDiv.appendChild(highlightSpan);
-                console.log("Static highlight placed on page 1 for testing.");
+                highlightOverlayForPage1.appendChild(highlightSpan);
+                console.log("Static highlight placed on page 1 overlay for testing.");
             } else {
-                console.warn("Could not find page-div-1 to place static highlight.");
+                console.warn("Could not find highlight-overlay-1 to place static highlight.");
             }
             // --- END TEMPORARY TEST ---
 
-            // The actual text-matching logic is commented out for this test.
-            /*
-            if (!activeHighlightText) {
-                return; // No text to highlight
-            }
-
-            const searchTextLower = activeHighlightText.toLowerCase();
-
-            for (let i = 1; i <= pdfDoc.numPages; i++) {
-                const pageDiv = document.getElementById(`page-div-${i}`);
-                if (!pageDiv) continue;
-
-                const pdfPage = await pdfDoc.getPage(i);
-                const textContentItems = pdfPage.textContentItems;
-                const viewport = pdfPage.viewport;
-
-                if (!textContentItems || !viewport) continue;
-
-                let charOffsetInFullText = 0; // Track character position in the page's reconstructed text
-
-                // Iterate through each text item on the page
-                for (const item of textContentItems) {
-                    const itemStrLower = item.str.toLowerCase();
-
-                    // Check if this text item's string contains the search text
-                    let matchInItemIndex = itemStrLower.indexOf(searchTextLower);
-
-                    // While there are matches within this item's string
-                    while (matchInItemIndex !== -1) {
-                        // Create the highlight span
-                        const highlightSpan = document.createElement('div');
-                        highlightSpan.className = 'highlight';
-
-                        // Get the base position of the text item
-                        const [x, y] = pdfjsLib.Util.applyTransform([item.transform[4], item.transform[5]], viewport.transform);
-
-                        // Calculate the highlight's width and height based on the text item's dimensions
-                        const width = item.width * viewport.scale;
-                        const height = item.height * viewport.scale;
-
-                        highlightSpan.style.left = `${x}px`;
-                        highlightSpan.style.top = `${y}px`;
-                        highlightSpan.style.width = `${width}px`;
-                        highlightSpan.style.height = `${height}px`;
-
-                        pageDiv.appendChild(highlightSpan);
-
-                        // Look for the next match within this same item's string, starting after the current match
-                        matchInItemIndex = itemStrLower.indexOf(searchTextLower, matchInItemIndex + 1);
-                    }
-                    charOffsetInFullText += itemStrLower.length; // Update offset for debugging if needed
-                }
-            }
-            */
+            // The actual text-matching logic is still commented out.
         }
 
 
