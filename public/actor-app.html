@@ -132,12 +132,12 @@
         /* --- Custom highlight styling --- */
         .highlight {
             position: absolute;
-            background-color: rgba(255, 255, 0, 0.5); /* Semi-transparent yellow */
+            background-color: rgba(255, 255, 0, 0.4); /* Semi-transparent yellow */
             /* NO BORDER - removed any border styling */
             border: none !important;
             border-radius: 2px;
             pointer-events: none; /* Allow interaction with elements beneath */
-            z-index: 0;
+            z-index: 10;
             mix-blend-mode: multiply; /* Better blending with text */
             /* Ensure no outline or box-shadow */
             outline: none !important;
@@ -404,15 +404,18 @@
             return cleaned;
         }
 
+        // FIXED: Updated handleHighlightClick function
         window.handleHighlightClick = () => {
             window.toggleMenu(); // Close the side menu
-            window.showModal('Highlight Text',
+            window.showModal('Highlight Text 0.5.1',
                 'Enter text to highlight across the script:\n\nNote: Spaces will be ignored in the search.',
                 false, true,
                 (text) => {
+                    // Clear existing highlights first
+                    document.querySelectorAll('.highlight').forEach(el => el.remove());
+
                     if (!text || text.trim() === "") {
                         activeHighlightText = "";
-                        document.querySelectorAll('.highlight').forEach(el => el.remove());
                         window.showDebugMessage("Cleared all highlights", 'info');
                         window.showModal('Highlights Cleared', 'All highlights have been removed from the script.', false);
                     } else {
