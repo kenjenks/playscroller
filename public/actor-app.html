@@ -388,13 +388,38 @@
         }
 
 
-        // --- Highlighting Logic ---
+        // --- Highlighting Logic (TEMPORARY STATIC TEST) ---
         async function renderHighlights() {
             // Clear all existing highlights before re-rendering
             document.querySelectorAll('.highlight').forEach(el => el.remove());
 
-            if (!pdfDoc || !activeHighlightText) {
-                return; // No PDF or no text to highlight
+            if (!pdfDoc) {
+                return; // No PDF loaded yet
+            }
+
+            // --- TEMPORARY TEST: Place a fixed rectangle on page 1 ---
+            const pageDiv = document.getElementById(`page-div-1`); // Target the first page
+            if (pageDiv) {
+                const highlightSpan = document.createElement('div');
+                highlightSpan.className = 'highlight';
+
+                // Fixed position for testing
+                highlightSpan.style.left = `50px`;
+                highlightSpan.style.top = `50px`;
+                highlightSpan.style.width = `200px`;
+                highlightSpan.style.height = `30px`;
+
+                pageDiv.appendChild(highlightSpan);
+                console.log("Static highlight placed on page 1 for testing.");
+            } else {
+                console.warn("Could not find page-div-1 to place static highlight.");
+            }
+            // --- END TEMPORARY TEST ---
+
+            // The actual text-matching logic is commented out for this test.
+            /*
+            if (!activeHighlightText) {
+                return; // No text to highlight
             }
 
             const searchTextLower = activeHighlightText.toLowerCase();
@@ -420,18 +445,9 @@
 
                     // While there are matches within this item's string
                     while (matchInItemIndex !== -1) {
-                        // Calculate the start and end of the highlight within this item
-                        const matchStartCharInItem = matchInItemIndex;
-                        const matchEndCharInItem = matchInItemIndex + searchTextLower.length;
-
                         // Create the highlight span
                         const highlightSpan = document.createElement('div');
                         highlightSpan.className = 'highlight';
-
-                        // Use PDF.js utility to get pixel coordinates from PDF units
-                        // item.transform is a 6-element array for the matrix [a,b,c,d,e,f] where e=x, f=y
-                        // The (x,y) of the text item is its origin.
-                        // We need to apply the item's transform, then the viewport transform.
 
                         // Get the base position of the text item
                         const [x, y] = pdfjsLib.Util.applyTransform([item.transform[4], item.transform[5]], viewport.transform);
@@ -440,10 +456,6 @@
                         const width = item.width * viewport.scale;
                         const height = item.height * viewport.scale;
 
-                        // Positioning: Simplified to highlight the entire text item.
-                        // For precise sub-string highlighting within an item, one would need
-                        // to measure character widths or use PDF.js's internal text layer DOM elements,
-                        // which is more complex and prone to browser-specific font rendering issues.
                         highlightSpan.style.left = `${x}px`;
                         highlightSpan.style.top = `${y}px`;
                         highlightSpan.style.width = `${width}px`;
@@ -457,6 +469,7 @@
                     charOffsetInFullText += itemStrLower.length; // Update offset for debugging if needed
                 }
             }
+            */
         }
 
 
