@@ -4,7 +4,8 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="fe1af6f4-92e1-4bdd-b2df-11bac74cf631" name="Changes" comment="Version 0.7 sm-app.html Add hamburger menu">
+    <list default="true" id="fe1af6f4-92e1-4bdd-b2df-11bac74cf631" name="Changes" comment="Version 0.7.1 sm-app.html Read PDF, even from Google Drive URL">
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/public/sm-app.html" beforeDir="false" afterPath="$PROJECT_DIR$/public/sm-app.html" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
@@ -418,7 +419,15 @@
       <option name="project" value="LOCAL" />
       <updated>1764962841788</updated>
     </task>
-    <option name="localTasksCounter" value="46" />
+    <task id="LOCAL-00046" summary="Version 0.7.1 sm-app.html Read PDF, even from Google Drive URL">
+      <option name="closed" value="true" />
+      <created>1764963310569</created>
+      <option name="number" value="00046" />
+      <option name="presentableId" value="LOCAL-00046" />
+      <option name="project" value="LOCAL" />
+      <updated>1764963310569</updated>
+    </task>
+    <option name="localTasksCounter" value="47" />
     <servers />
   </component>
   <component name="Vcs.Log.Tabs.Properties">
@@ -433,7 +442,6 @@
     </option>
   </component>
   <component name="VcsManagerConfiguration">
-    <MESSAGE value="Version 0.2 Explicitly telling the JavaScript engine to look for the QRCode constructor in the global scope" />
     <MESSAGE value="Version 0.2 Now using QRious" />
     <MESSAGE value="Version 0.2 actor-app.html Incorporates Firebase configuration, initialization, PDF loading, and Realtime Database listening logic" />
     <MESSAGE value="Version 0.3 actor-app.html Full screen, no scrolling, hamburger menu to highlight text" />
@@ -458,6 +466,7 @@
     <MESSAGE value="Version 0.5.9 actor-app.html Ignore all spaces in highlight search terms" />
     <MESSAGE value="Version 0.6 actor-app.html Ignore all spaces in highlight search terms even across two lines" />
     <MESSAGE value="Version 0.7 sm-app.html Add hamburger menu" />
-    <option name="LAST_COMMIT_MESSAGE" value="Version 0.7 sm-app.html Add hamburger menu" />
+    <MESSAGE value="Version 0.7.1 sm-app.html Read PDF, even from Google Drive URL" />
+    <option name="LAST_COMMIT_MESSAGE" value="Version 0.7.1 sm-app.html Read PDF, even from Google Drive URL" />
   </component>
 </project>
