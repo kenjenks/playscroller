@@ -1,15 +1,14 @@
 <!DOCTYPE html>
-<!-- DANGER! WARNING! THEATER! app for displaying PDF files on actors' devices -->
+<!-- DANGER! WARNING! THEATER! app for displaying PDF files to follow Stage Manager scrolling -->
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Stage Manager App (SM)</title>
+    <title>Actor App</title>
     <!-- Tailwind CSS for mobile-first, responsive design -->
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         body { font-family: 'Inter', sans-serif; background-color: #f7f7f7; }
-        /* Style for the PDF canvas container */
         #pdf-container {
             width: 100%;
             max-width: 800px;
@@ -17,71 +16,32 @@
             border: 2px solid #334155;
             box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
             background-color: white;
-            overflow-y: scroll; /* Allows SM to scroll the PDF container */
-            height: 80vh; /* Fixed height for scrollable view */
+            overflow-y: scroll;
+            height: 90vh; /* Make it taller for actors */
         }
         canvas {
             display: block;
             margin: 0 auto;
         }
-        /* Custom scrollbar to make scrolling detection cleaner */
-        #pdf-container::-webkit-scrollbar {
-            width: 8px;
-        }
-        #pdf-container::-webkit-scrollbar-thumb {
-            background-color: #94a3b8;
-            border-radius: 10px;
-        }
     </style>
     <!-- PDF.js library -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.11.338/pdf.min.js"></script>
-    <!-- QR Code generation library -->
-    <script src="https://cdn.jsdelivr.net/npm/qrcode.js@0.0.2/qrcode.min.js"></script>
 </head>
 <body class="p-4">
 
     <div id="main-ui" class="max-w-4xl mx-auto space-y-6">
 
-        <h1 class="text-3xl font-bold text-gray-800 border-b pb-2 mb-4">Stage Manager (SM) Control</h1>
+        <h1 class="text-3xl font-bold text-gray-800 border-b pb-2 mb-4">Actor View</h1>
         <p class="text-sm text-gray-600">User ID: <span id="user-id-display" class="font-mono text-xs bg-gray-200 px-2 py-1 rounded">Loading...</span></p>
-
-        <!-- 1. Session Setup Panel -->
-        <div id="setup-panel" class="bg-white p-4 rounded-xl shadow-lg border border-indigo-100">
-            <h2 class="text-xl font-semibold mb-3 text-indigo-700">1. Setup Session</h2>
-
-            <label for="pdf-url" class="block text-sm font-medium text-gray-700">Public PDF Script URL</label>
-            <input type="url" id="pdf-url" placeholder="e.g., https://storage.google.com/my-script.pdf"
-                   class="mt-1 block w-full rounded-lg border-gray-300 shadow-sm p-3 border focus:border-indigo-500 focus:ring-indigo-500" required>
-
-            <label for="app-host-url" class="block text-sm font-medium text-gray-700 mt-4">Actor App Base URL (e.g., https://myapp.vercel.app/actor_app.html)</label>
-            <input type="url" id="app-host-url" placeholder="Required for Actor Sync QR Code"
-                   class="mt-1 block w-full rounded-lg border-gray-300 shadow-sm p-3 border focus:border-indigo-500 focus:ring-indigo-500">
-
-            <button id="start-session-btn" onclick="startSession()"
-                    class="mt-4 w-full flex justify-center py-3 px-4 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition duration-150">
-                Start New Session & Load PDF
-            </button>
-        </div>
-
-        <!-- 2. Synchronization Panel (Hidden initially) -->
-        <div id="sync-panel" class="bg-indigo-50 p-6 rounded-xl shadow-xl hidden">
-            <h2 class="text-2xl font-bold mb-4 text-indigo-800">2. Real-Time Sync Active</h2>
-            <p class="text-lg font-medium text-indigo-600 mb-2">Session ID: <span id="session-id-display" class="font-mono text-xl bg-indigo-200 px-3 py-1 rounded-md"></span></p>
-            <p class="text-sm text-indigo-700 mb-4">Actors must scan the QR code below to join this session.</p>
-
-            <div class="flex flex-col items-center justify-center bg-white p-4 rounded-lg shadow-inner">
-                <div id="qr-code" class="w-48 h-48 border-4 border-indigo-500 p-2 rounded-lg"></div>
-                <p class="mt-2 text-sm text-gray-500">Actor Sync QR Code</p>
-            </div>
-            <p id="sync-status" class="mt-4 text-center text-sm font-medium text-green-700"></p>
-        </div>
+        <p class="text-lg font-medium text-indigo-600 mb-2">Connected to Session: <span id="session-id-display" class="font-mono text-xl bg-indigo-200 px-3 py-1 rounded-md">Not Connected</span></p>
+        <p class="text-sm text-indigo-700 mb-4">PDF: <span id="pdf-url-display" class="font-mono text-xs bg-gray-200 px-2 py-1 rounded">Loading...</span></p>
 
         <!-- 3. PDF Viewer -->
-        <div id="viewer-panel" class="bg-white p-4 rounded-xl shadow-lg hidden">
-            <h2 class="text-xl font-semibold mb-3 text-gray-700">3. Script Viewer (Control)</h2>
-            <div id="pdf-container" onscroll="handleScroll()">
+        <div id="viewer-panel" class="bg-white p-4 rounded-xl shadow-lg">
+            <h2 class="text-xl font-semibold mb-3 text-gray-700">Script Viewer</h2>
+            <div id="pdf-container">
                 <!-- PDF Canvases will be rendered here -->
-                <p id="loading-message" class="text-center py-12 text-gray-500">Please start a session to load the PDF.</p>
+                <p id="loading-message" class="text-center py-12 text-gray-500">Connecting to session and loading PDF...</p>
             </div>
         </div>
 
@@ -90,7 +50,7 @@
             <div class="bg-white p-6 rounded-lg shadow-xl max-w-sm w-full">
                 <h3 id="modal-title" class="text-xl font-bold mb-4 text-red-600">Error</h3>
                 <p id="modal-message" class="text-gray-700 mb-6"></p>
-                <button onclick="closeModal()" class="w-full py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700">Close</button>
+                <button onclick="window.closeModal()" class="w-full py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700">Close</button>
             </div>
         </div>
 
@@ -100,20 +60,14 @@
         // Import the functions you need from the SDKs you need
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        // *** IMPORTANT: Now importing Realtime Database functions ***
-        import { getDatabase, ref, set, update } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-database.js";
+        import { getDatabase, ref, onValue } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-database.js";
 
-        // Import the functions you need from the SDKs you need
-        // REMOVED import { initializeApp } from "firebase/app";
-        // TODO: Add SDKs for Firebase products that you want to use
-        // https://firebase.google.com/docs/web/setup#available-libraries
-
-        // Your web app's Firebase configuration
+        // --- Global Firebase Variables ---
         const firebaseConfig = {
           apiKey: "AIzaSyBG9pzEdllxWnZu0zYQMXqEFzJWNAVv6Lw",
           authDomain: "playscroller.firebaseapp.com",
           projectId: "playscroller",
-          storageBucket: "playscroller.firebasestorage.app",
+          storageBucket: "playscroller.appspot.com",
           messagingSenderId: "86147104940",
           appId: "1:86147104940:web:f1bd908e1206795f9d1f09"
         };
@@ -121,12 +75,11 @@
         // Initialize Firebase
         const app = initializeApp(firebaseConfig);
 
-        // Renamed 'db' to 'rtdb' for Realtime Database
         let rtdb, auth, userId;
         let pdfDoc = null;
-        let currentPage = 1; // This variable seems unused, could be removed.
         let pdfContainer;
         let currentSessionId = null;
+        let currentPdfUrl = null;
 
         // Ensure PDF.js worker is set up
         pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.11.338/pdf.worker.min.js';
@@ -147,35 +100,50 @@
         // --- Core App Initialization ---
         async function initializeFirebase() {
             try {
-                // The check for firebaseConfig being empty is still good practice
-                if (Object.keys(firebaseConfig).length === 0 || !firebaseConfig.databaseURL) {
-                     showModal('Configuration Error', 'Firebase configuration or Realtime Database URL is missing. Cannot initialize real-time features.', true);
+                if (!firebaseConfig.apiKey || Object.keys(firebaseConfig).length === 0) {
+                     showModal('Configuration Error', 'Firebase API Key is missing or Firebase configuration is empty. Cannot initialize.', true);
                      return;
                 }
 
-                rtdb = getDatabase(app); // Initialize Realtime Database
-                auth = getAuth(app); // Initialize Authentication
+                rtdb = getDatabase(app);
+                auth = getAuth(app);
 
-                // Authenticate user
                 await signInAnonymously(auth);
                 userId = auth.currentUser?.uid || crypto.randomUUID();
                 document.getElementById('user-id-display').textContent = userId;
 
-                // Load any initial query parameters
+                // Extract session_id and pdf_url from QR code URL
                 const urlParams = new URLSearchParams(window.location.search);
-                const initialPdfUrl = urlParams.get('pdf_url');
-                if (initialPdfUrl) {
-                    document.getElementById('pdf-url').value = initialPdfUrl;
+                const sessionIdFromUrl = urlParams.get('session_id');
+                const pdfUrlFromUrl = urlParams.get('pdf_url');
+
+                if (!sessionIdFromUrl || !pdfUrlFromUrl) {
+                    showModal('Connection Error', 'Missing Session ID or PDF URL in QR code link. Please scan the Stage Manager\'s QR code.', true);
+                    document.getElementById('loading-message').textContent = 'Error: Missing session details.';
+                    return;
                 }
+
+                currentSessionId = sessionIdFromUrl;
+                currentPdfUrl = pdfUrlFromUrl;
+
+                document.getElementById('session-id-display').textContent = currentSessionId;
+                document.getElementById('pdf-url-display').textContent = currentPdfUrl;
+
+
+                // Load and render PDF first
+                await loadAndRenderPDF(currentPdfUrl);
+
+                // Start listening for scroll state changes
+                listenForScrollState();
 
             } catch (error) {
                 console.error("Firebase initialization failed:", error);
                 showModal('Initialization Failed', `Could not initialize Firebase: ${error.message}`, true);
+                document.getElementById('loading-message').textContent = 'Error: Firebase initialization failed.';
             }
         }
 
-        // --- PDF Rendering Functions ---
-
+        // --- PDF Rendering Functions (Same as SM app) ---
         async function renderPage(pageNumber, pdfPage) {
             const viewport = pdfPage.getViewport({ scale: 1.5 });
             const canvas = document.createElement('canvas');
@@ -202,12 +170,8 @@
                     await renderPage(i, page);
                 }
 
-                document.getElementById('viewer-panel').classList.remove('hidden');
-                document.getElementById('setup-panel').classList.add('hidden');
-                showModal('PDF Loaded', `Successfully loaded script with ${pdf.numPages} pages.`, false);
-
-                // Initial broadcast after loading
-                broadcastScrollState();
+                // Initial scroll to top
+                pdfContainer.scrollTop = 0;
 
             } catch (error) {
                 console.error("PDF Loading Error:", error);
@@ -217,190 +181,50 @@
             }
         }
 
-        // --- Real-Time Synchronization Functions ---
-
-        function generateSessionId() {
-            // Simple unique ID based on time and a random string
-            return 'SESS-' + Date.now().toString(36) + Math.random().toString(36).substring(2, 6).toUpperCase();
-        }
-
-        window.startSession = async () => {
-            // Changed from 'db' to 'rtdb'
-            if (!rtdb || !userId) {
-                showModal('System Error', 'Firebase Realtime Database not initialized. Please refresh.', true);
+        // --- Real-Time Synchronization (Actor Listener) ---
+        function listenForScrollState() {
+            if (!currentSessionId || !rtdb) {
+                console.error("Cannot listen for scroll state: Session ID or RTDB not initialized.");
+                showModal('Real-time Error', 'Cannot connect to session. Realtime Database not ready.', true);
                 return;
             }
 
-            const pdfUrl = document.getElementById('pdf-url').value;
-            const appHostUrl = document.getElementById('app-host-url').value;
-
-            if (!pdfUrl || !appHostUrl) {
-                showModal('Input Required', 'Please provide both the Public PDF URL and the Actor App Base URL.', true);
-                return;
-            }
-
-            currentSessionId = generateSessionId();
-
-            // 1. Create session metadata in Realtime Database
-            // Replaced Firestore 'doc' and 'setDoc' with RTDB 'ref' and 'set'
-            const metadataRef = ref(rtdb, `sessions/${currentSessionId}/metadata`);
-            const sessionMetadata = {
-                sm_id: userId,
-                pdf_url: pdfUrl,
-                timestamp: Date.now(),
-                status: 'active'
-            };
-
-            // 2. Initialize view state in Realtime Database
-            const viewStateRef = ref(rtdb, `sessions/${currentSessionId}/viewState`);
-            const initialViewState = {
-                page: 1,
-                y_percent: 0,
-                timestamp: Date.now()
-            };
-
-            try {
-                await set(metadataRef, sessionMetadata); // Use 'set' for initial metadata
-                await set(viewStateRef, initialViewState); // Use 'set' for initial viewState
-
-                // 3. Load PDF
-                await loadAndRenderPDF(pdfUrl);
-
-                // 4. Update UI and QR Code
-                document.getElementById('session-id-display').textContent = currentSessionId;
-                document.getElementById('sync-panel').classList.remove('hidden');
-                document.getElementById('sync-status').textContent = 'Session is LIVE and transmitting scroll data.';
-
-                const actorSyncUrl = `${appHostUrl}?session_id=${currentSessionId}&pdf_url=${encodeURIComponent(pdfUrl)}`;
-
-                // Clear existing QR code and generate new one
-                document.getElementById('qr-code').innerHTML = '';
-                new QRCode(document.getElementById('qr-code'), {
-                    text: actorSyncUrl,
-                    width: 180,
-                    height: 180,
-                    colorDark: "#3730a3", // Indigo 700
-                    colorLight: "#ffffff",
-                    correctLevel: QRCode.CorrectLevel.H
-                });
-
-                // Attach scroll listener to the PDF container
-                pdfContainer.addEventListener('scroll', handleScroll);
-
-            } catch (error) {
-                console.error("Session start failed:", error);
-                showModal('Session Failed', `Could not start session or write to Realtime Database. Error: ${error.message}`, true);
-                currentSessionId = null;
-            }
-        };
-
-        // Throttle utility function
-        const throttle = (func, limit) => {
-            let inThrottle;
-            return function() {
-                const args = arguments;
-                const context = this;
-                if (!inThrottle) {
-                    func.apply(context, args);
-                    inThrottle = true;
-                    setTimeout(() => inThrottle = false, limit);
-                }
-            }
-        }
-
-        // --- Core Scroll Logic ---
-
-        function getCurrentScrollState() {
-            const container = pdfContainer;
-            const scrollY = container.scrollTop;
-            const containerHeight = container.clientHeight;
-            let currentCanvas = null;
-
-            // Find the visible canvas page
-            const canvases = container.querySelectorAll('canvas');
-            for (const canvas of canvases) {
-                // Check if the top of the canvas is within the view or just above
-                const canvasTop = canvas.offsetTop;
-                const canvasBottom = canvas.offsetTop + canvas.offsetHeight;
-
-                // If the scroll position is past the top of the canvas...
-                if (scrollY >= canvasTop && scrollY < canvasBottom) {
-                    currentCanvas = canvas;
-                    break;
-                }
-            }
-
-            if (!currentCanvas) {
-                // Fallback to the first page if scrolled all the way to the top
-                if (canvases.length > 0 && scrollY < canvases[0].offsetTop + canvases[0].offsetHeight) {
-                    currentCanvas = canvases[0];
-                } else if (canvases.length > 0) {
-                     // Fallback to the last page if scrolled all the way to the bottom
-                     currentCanvas = canvases[canvases.length - 1];
-                } else {
-                    return null; // Should not happen if PDF is loaded
-                }
-            }
-
-            const pageNumber = parseInt(currentCanvas.getAttribute('data-page'), 10);
-            const pageHeight = currentCanvas.offsetHeight;
-            const pageTop = currentCanvas.offsetTop;
-
-            // Calculate scroll position relative to the top of the current page
-            // This is the distance from the top of the container's viewport to the top of the current page.
-            const scrollInPage = scrollY - pageTop;
-
-            // y_percent is the percentage the *top* of the viewport has scrolled down the current page.
-            // Ensure containerHeight is accounted for if we want percentage *within* the page visible area
-            // However, the spec only asks for page number and y_percent (0-100). We'll use the top-of-viewport relative to page top.
-            let yPercent = Math.min(100, Math.max(0, (scrollInPage / pageHeight) * 100));
-
-            // Handle edge case where SM scrolls exactly to the bottom of the container
-            if (scrollY + containerHeight >= container.scrollHeight - 5) { // 5px tolerance
-                yPercent = 100;
-            }
-
-            // If the scroll position is exactly at the top of a page, ensure it reports 0%
-            if (scrollInPage <= 10) {
-                yPercent = 0;
-            }
-
-
-            return { page: pageNumber, y_percent: parseFloat(yPercent.toFixed(2)) };
-        }
-
-        const broadcastScrollState = throttle(async () => {
-            if (!currentSessionId || !rtdb) return; // Changed from 'db' to 'rtdb'
-
-            const state = getCurrentScrollState();
-            if (!state) return;
-
-            // Update specific viewState node in Realtime Database
-            // Replaced Firestore 'doc' and 'setDoc' with RTDB 'ref' and 'update'
             const viewStateRef = ref(rtdb, `sessions/${currentSessionId}/viewState`);
 
-            try {
-                await update(viewStateRef, {
-                    page: state.page,
-                    y_percent: state.y_percent,
-                    timestamp: Date.now()
+            onValue(viewStateRef, (snapshot) => {
+                const data = snapshot.val();
+                if (data) {
+                    const targetPage = data.page;
+                    const targetYPercent = data.y_percent;
+
+                    // Implement smooth scrolling
+                    scrollToPageAndPosition(targetPage, targetYPercent);
+                }
+            }, (error) => {
+                console.error("Error listening to Realtime Database:", error);
+                showModal('Real-time Error', `Failed to receive real-time updates: ${error.message}`, true);
+            });
+        }
+
+        // --- Scrolling Logic for Actor App ---
+        function scrollToPageAndPosition(pageNumber, yPercent) {
+            if (!pdfDoc || !pdfContainer) return;
+
+            const targetCanvas = document.getElementById(`pdf-page-${pageNumber}`);
+
+            if (targetCanvas) {
+                const targetScrollY = targetCanvas.offsetTop + (targetCanvas.offsetHeight * (yPercent / 100));
+
+                // Implement smooth scroll if desired
+                pdfContainer.scrollTo({
+                    top: targetScrollY,
+                    behavior: 'smooth'
+                    // You might need to adjust duration or curve if 'smooth' isn't smooth enough
                 });
-
-                document.getElementById('sync-status').textContent = `Broadcasting: Page ${state.page} @ ${state.y_percent.toFixed(0)}%`;
-
-            } catch (e) {
-                console.error("Broadcast failed:", e);
-                document.getElementById('sync-status').textContent = 'BROADCAST FAILED! Check console.';
+            } else {
+                console.warn(`Target canvas for page ${pageNumber} not found.`);
             }
-
-        }, 150); // Throttle to 150ms
-
-        // Event handler for scrolling
-        window.handleScroll = () => {
-            if (pdfDoc && currentSessionId) {
-                broadcastScrollState();
-            }
-        };
+        }
 
         // --- Initial Setup ---
         document.addEventListener('DOMContentLoaded', () => {
