@@ -98,27 +98,19 @@
 
     <script type="module">
         // Import the functions you need from the SDKs you need
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        // *** IMPORTANT: Now importing Realtime Database functions ***
-        import { getDatabase, ref, set, update } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-database.js";
+        import { initializeApp } from "firebase/app";
+        // TODO: Add SDKs for Firebase products that you want to use
+        // https://firebase.google.com/docs/web/setup#available-libraries
 
-        // --- Global Firebase Variables ---
-
+        // Your web app's Firebase configuration
         const firebaseConfig = {
           apiKey: "AIzaSyBG9pzEdllxWnZu0zYQMXqEFzJWNAVv6Lw",
           authDomain: "playscroller.firebaseapp.com",
-          // IMPORTANT: databaseURL was missing from your provided snippet.
-          // Inferred based on project ID. Please double-check in Firebase Console!
-          databaseURL: "https://playscroller-default-rtdb.firebaseio.com",
           projectId: "playscroller",
           storageBucket: "playscroller.firebasestorage.app",
           messagingSenderId: "86147104940",
           appId: "1:86147104940:web:f1bd908e1206795f9d1f09"
         };
-
-        // Initialize Firebase (the 'app' variable is now used by getDatabase and getAuth)
-        const app = initializeApp(firebaseConfig);
 
         // Renamed 'db' to 'rtdb' for Realtime Database
         let rtdb, auth, userId;
