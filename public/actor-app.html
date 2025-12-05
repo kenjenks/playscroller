@@ -413,8 +413,8 @@
         // UPDATED: handleHighlightClick function - MODAL CLOSES AFTER HIGHLIGHTING COMPLETES
         window.handleHighlightClick = () => {
             window.toggleMenu(); // Close the side menu
-            window.showModal('Highlight Text 0.5.8',
-                'Enter text to highlight across the script:',
+            window.showModal('Highlight Text 0.5.9',
+                'Enter text to highlight across the script:\n\nNote: Spaces will be ignored in the search.',
                 false, true,
                 async (text) => { // Make callback async
                     window.showDebugMessage(`User entered text: "${text}"`, 'info');
@@ -623,8 +623,8 @@
 
                     // Search for text in this page (case-insensitive)
                     for (const textItem of textContent.items) {
-                        // Clean the PDF text (remove beginning and end spaces for comparison)
-                        const pdfTextCleaned = textItem.str.trim();
+                        // Clean the PDF text (remove spaces for comparison)
+                        const pdfTextCleaned = textItem.str.replace(/\s+/g, '');
 
                         if (pdfTextCleaned.toLowerCase().includes(searchTextLower)) {
                             window.showDebugMessage(`Found match: "${textItem.str}" on page ${pageNum}`, 'info');
