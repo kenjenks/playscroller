@@ -331,10 +331,6 @@
         const modalOkBtn = document.getElementById('modal-ok-btn');
         const modalCancelBtn = document.getElementById('modal-cancel-btn');
 
-        // FIXED: Store the current callback functions before they're cleared
-        let currentOkCallback = null;
-        let currentCancelCallback = null;
-
         window.showModal = (title, message, isError = true, showInput = false, onOk = null, onCancel = null) => {
             modalTitle.textContent = title;
             modalMessage.textContent = message;
@@ -346,25 +342,36 @@
                 modalCancelBtn.classList.remove('hidden');
                 modalOkBtn.textContent = 'Highlight'; // Change text for highlight action
 
-                // Store callbacks
-                currentOkCallback = onOk;
-                currentCancelCallback = onCancel;
+                // Store the callbacks for later use
+                let okCallback = onOk;
+                let cancelCallback = onCancel;
 
                 // Set up button handlers
-                modalOkBtn.onclick = () => {
-                    // Get the input value BEFORE closing the modal
+                modalOkBtn.onclick = async () => {
+                    // Get the input value
                     const inputValue = highlightTextInput.value;
-                    window.closeModal();
-                    if (currentOkCallback) {
-                        currentOkCallback(inputValue);
+
+                    // Disable the OK button while processing
+                    modalOkBtn.disabled = true;
+                    modalOkBtn.textContent = 'Searching...';
+                    modalOkBtn.classList.add('opacity-50', 'cursor-not-allowed');
+
+                    try {
+                        // Call the callback and wait for it to complete
+                        if (okCallback) {
+                            await okCallback(inputValue); // WAIT for callback to complete
+                        }
+                    } finally {
+                        // Always close the modal after callback completes
+                        window.closeModal();
                     }
                 };
 
                 modalCancelBtn.onclick = () => {
-                    window.closeModal();
-                    if (currentCancelCallback) {
-                        currentCancelCallback();
+                    if (cancelCallback) {
+                        cancelCallback();
                     }
+                    window.closeModal();
                 };
 
                 // Focus the input field
@@ -387,10 +394,12 @@
 
         window.closeModal = () => {
             modal.classList.add('hidden');
-            // Don't clear input value here - it's cleared after callback runs
-            // Reset stored callbacks
-            currentOkCallback = null;
-            currentCancelCallback = null;
+            // Clear input field
+            highlightTextInput.value = '';
+            // Reset OK button state
+            modalOkBtn.disabled = false;
+            modalOkBtn.textContent = 'Highlight';
+            modalOkBtn.classList.remove('opacity-50', 'cursor-not-allowed');
         };
 
         // --- Menu Functions ---
@@ -413,13 +422,13 @@
             return cleaned;
         }
 
-        // UPDATED: handleHighlightClick function - FIXED THE INPUT VALUE ISSUE
+        // UPDATED: handleHighlightClick function - MODAL CLOSES AFTER HIGHLIGHTING COMPLETES
         window.handleHighlightClick = () => {
             window.toggleMenu(); // Close the side menu
-            window.showModal('Highlight Text 0.5.4',
+            window.showModal('Highlight Text 0.5.5',
                 'Enter text to highlight across the script:\n\nNote: Spaces will be ignored in the search.',
                 false, true,
-                (text) => {
+                async (text) => { // Make callback async
                     window.showDebugMessage(`User entered text: "${text}"`, 'info');
 
                     // Clear existing highlights first (ALWAYS do this)
@@ -429,25 +438,18 @@
                         activeHighlightText = "";
                         window.showDebugMessage("Cleared all highlights (blank input)", 'info');
                         // NO MODAL - just clear highlights silently
+                        return; // Return immediately for blank input
                     } else {
                         // Clean the search text (remove all spaces)
                         activeHighlightText = cleanSearchText(text);
                         window.showDebugMessage(`Searching for: "${activeHighlightText}" (case-insensitive)`, 'info');
 
-                        // DEBUG: Add a test highlight to see if function is called
-                        window.showDebugMessage(`Calling renderHighlightsForText("${activeHighlightText}")`, 'info');
-
-                        // Call the highlight function
-                        renderHighlightsForText(activeHighlightText);
+                        // Call the highlight function and WAIT for it to complete
+                        await renderHighlightsForText(activeHighlightText);
                     }
-
-                    // Clear the input field after processing
-                    highlightTextInput.value = '';
                 },
                 () => {
                     window.showDebugMessage("Highlight cancelled", 'info');
-                    // Clear the input field on cancel too
-                    highlightTextInput.value = '';
                 }
             );
         };
