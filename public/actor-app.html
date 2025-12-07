@@ -16,6 +16,7 @@
             overflow: hidden; /* Prevent body scroll */
             font-family: 'Inter', sans-serif;
             background-color: #f7f7f7;
+            transition: background-color 0.3s ease, color 0.3s ease;
             /* Hide scrollbars for body if they appear, though main scroll is on pdf-viewer-wrapper */
             scrollbar-width: none; /* Firefox */
             -ms-overflow-style: none;  /* IE and Edge */
@@ -30,6 +31,7 @@
             height: 100%; /* Take full available space */
             overflow-y: hidden; /* Disable manual scrolling */
             scroll-behavior: smooth; /* Smooth scrolling for programmatic jumps */
+            transition: background-color 0.3s ease;
             /* Hide scrollbars for pdf-viewer-wrapper too, as SM controls scroll */
             scrollbar-width: none; /* Firefox */
             -ms-overflow-style: none;  /* IE and Edge */
@@ -95,7 +97,7 @@
             background-color: #fff;
             box-shadow: -4px 0 10px rgba(0,0,0,0.1);
             transform: translateX(100%);
-            transition: transform 0.3s ease-out;
+            transition: transform 0.3s ease-out, background-color 0.3s ease;
             z-index: 999;
             padding: 1rem;
             display: flex;
@@ -123,7 +125,7 @@
             color: #1f2937; /* Dark gray */
             border: none;
             cursor: pointer;
-            transition: background-color 0.2s;
+            transition: background-color 0.2s, color 0.2s;
         }
         #side-menu button:hover {
             background-color: #e5e7eb; /* Lighter gray */
@@ -165,6 +167,7 @@
             margin-right: 8px;
             vertical-align: middle;
             border: 1px solid rgba(0,0,0,0.1);
+            transition: border-color 0.3s ease;
         }
         .color-indicator-yellow {
             background-color: rgba(255, 255, 0, 0.8);
@@ -212,6 +215,7 @@
             justify-content: center;
             align-items: center;
             padding: 20px;
+            transition: background-color 0.3s ease;
         }
 
         #qr-modal-content {
@@ -241,6 +245,7 @@
             height: auto !important;
             border: 10px solid white;
             box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+            transition: border-color 0.3s ease;
         }
 
         .qr-title {
@@ -248,6 +253,7 @@
             font-weight: bold;
             color: #1f2937;
             margin-bottom: 1.5rem;
+            transition: color 0.3s ease;
         }
 
         .qr-instructions {
@@ -255,6 +261,7 @@
             color: #4b5563;
             margin-bottom: 2rem;
             max-width: 600px;
+            transition: color 0.3s ease;
         }
 
         .session-info {
@@ -265,6 +272,7 @@
             font-size: 1.1rem;
             margin-bottom: 2rem;
             border: 2px solid #e5e7eb;
+            transition: background-color 0.3s ease, border-color 0.3s ease, color 0.3s ease;
         }
 
         .close-qr-btn {
@@ -301,6 +309,7 @@
             border-radius: 0.5rem;
             background-color: #f9fafb;
             border: 1px solid #e5e7eb;
+            transition: background-color 0.3s ease, border-color 0.3s ease;
         }
 
         .highlight-input-header {
@@ -313,6 +322,7 @@
         .highlight-input-label {
             flex-grow: 1;
             font-size: 0.95rem;
+            transition: color 0.3s ease;
         }
 
         .highlight-input {
@@ -321,6 +331,7 @@
             border: 1px solid #d1d5db;
             border-radius: 0.375rem;
             font-size: 0.95rem;
+            transition: background-color 0.3s ease, border-color 0.3s ease, color 0.3s ease;
         }
 
         .highlight-input:focus {
@@ -353,6 +364,30 @@
             color: #6b7280;
             margin-top: 0.5rem;
             text-align: center;
+            transition: color 0.3s ease;
+        }
+
+        /* Modal buttons */
+        #modal-buttons button {
+            transition: background-color 0.2s, color 0.2s;
+        }
+
+        #modal-cancel-btn {
+            background-color: #e5e7eb;
+            color: #374151;
+        }
+
+        #modal-cancel-btn:hover {
+            background-color: #d1d5db;
+        }
+
+        #modal-ok-btn {
+            background-color: #4f46e5;
+            color: white;
+        }
+
+        #modal-ok-btn:hover {
+            background-color: #4338ca;
         }
 
         /* --- Dark Mode Styles --- */
@@ -434,6 +469,43 @@
         body.dark-mode #modal-ok-btn:hover {
             background-color: #4338ca;
         }
+
+        body.dark-mode .color-indicator {
+            border-color: rgba(255,255,255,0.2);
+        }
+
+        body.dark-mode #qr-modal {
+            background-color: #121212;
+        }
+
+        body.dark-mode .qr-title {
+            color: #e0e0e0;
+        }
+
+        body.dark-mode .qr-instructions {
+            color: #b0b0b0;
+        }
+
+        body.dark-mode .session-info {
+            background-color: #3d3d3d;
+            border-color: #4d4d4d;
+            color: #e0e0e0;
+        }
+
+        body.dark-mode #qr-code-display canvas {
+            border-color: #2d2d2d;
+        }
+
+        /* Loading message in dark mode */
+        body.dark-mode .text-gray-500 {
+            color: #a0a0a0 !important;
+        }
+
+        /* Highlight loading indicator */
+        body.dark-mode .highlight-loading {
+            background-color: rgba(0, 0, 0, 0.9);
+            color: #e0e0e0;
+        }
     </style>
     <!-- PDF.js library -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.11.338/pdf.min.js"></script>
@@ -459,16 +531,16 @@
 
     <!-- Side Menu Panel -->
     <div id="side-menu">
-        <button class="self-end p-2 bg-transparent text-gray-500 hover:text-gray-800" onclick="window.toggleMenu()">
+        <button class="self-end p-2 bg-transparent text-gray-500 hover:text-gray-800" onclick="toggleMenu()">
             <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
             </svg>
         </button>
         <ul>
-            <li><button id="highlight-menu-item" onclick="window.handleHighlightClick()">Highlight Text...</button></li>
-            <li><button id="toggle-dark-mode-btn" onclick="window.toggleDarkMode()">Toggle Dark Mode</button></li>
+            <li><button id="highlight-menu-item">Highlight Text...</button></li>
+            <li><button id="toggle-dark-mode-btn">Toggle Dark Mode</button></li>
             <li><button id="show-qr-btn" class="hidden">Show Session QR Code</button></li>
-            <li><button id="exit-menu-item" onclick="window.exitApp()">Exit</button></li>
+            <li><button id="exit-menu-item">Exit</button></li>
         </ul>
     </div>
 
@@ -562,6 +634,74 @@
             </div>
         </div>
     </div>
+
+    <!-- Dark Mode Functions (outside module to be globally accessible) -->
+    <script>
+        // Global dark mode functions
+        function initializeDarkMode() {
+            // Check for saved dark mode preference or prefer-color-scheme
+            const savedMode = localStorage.getItem('playscroller_dark_mode');
+            const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+
+            // Apply dark mode if saved preference is true, or if no preference but system prefers dark
+            const shouldEnable = savedMode === 'true' || (!savedMode && prefersDark);
+
+            if (shouldEnable) {
+                document.body.classList.add('dark-mode');
+                updateDarkModeButton(true);
+            } else {
+                document.body.classList.remove('dark-mode');
+                updateDarkModeButton(false);
+            }
+
+            console.log('Actor Dark mode initialized:', shouldEnable ? 'enabled' : 'disabled');
+        }
+
+        function toggleDarkMode() {
+            const isDark = document.body.classList.toggle('dark-mode');
+
+            // Save preference to localStorage (works like cookies for persistence)
+            localStorage.setItem('playscroller_dark_mode', isDark.toString());
+
+            // Update button text
+            updateDarkModeButton(isDark);
+
+            // Close menu
+            if (typeof toggleMenu === 'function') {
+                toggleMenu();
+            }
+
+            console.log('Actor Dark mode toggled:', isDark ? 'enabled' : 'disabled');
+        }
+
+        function updateDarkModeButton(isDark) {
+            const button = document.getElementById('toggle-dark-mode-btn');
+            if (button) {
+                button.textContent = isDark ? 'Toggle Light Mode' : 'Toggle Dark Mode';
+                // Update onclick handler
+                button.onclick = toggleDarkMode;
+            }
+        }
+
+        // Initialize dark mode immediately when page loads
+        document.addEventListener('DOMContentLoaded', initializeDarkMode);
+
+        // Global menu toggle function
+        function toggleMenu() {
+            const sideMenu = document.getElementById('side-menu');
+            if (sideMenu) {
+                sideMenu.classList.toggle('open');
+                // Hide menu button when side menu is open, show when closed
+                const menuButton = document.getElementById('menu-button');
+                if (menuButton) {
+                    menuButton.style.display = sideMenu.classList.contains('open') ? 'none' : 'block';
+                }
+            }
+        }
+
+        // Make toggleMenu globally available
+        window.toggleMenu = toggleMenu;
+    </script>
 
     <script type="module">
         // Import the functions you need from the SDKs you need
@@ -698,47 +838,6 @@
                 console.log(formattedMessage);
             }
         };
-
-        // --- Dark Mode Functions ---
-        function initializeDarkMode() {
-            // Check for saved dark mode preference or prefer-color-scheme
-            const savedMode = localStorage.getItem('playscroller_dark_mode');
-            const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-
-            // Apply dark mode if saved preference is true, or if no preference but system prefers dark
-            const shouldEnable = savedMode === 'true' || (!savedMode && prefersDark);
-
-            if (shouldEnable) {
-                document.body.classList.add('dark-mode');
-                updateDarkModeButton(true);
-            } else {
-                document.body.classList.remove('dark-mode');
-                updateDarkModeButton(false);
-            }
-        }
-
-        function toggleDarkMode() {
-            const isDark = document.body.classList.toggle('dark-mode');
-
-            // Save preference to localStorage
-            localStorage.setItem('playscroller_dark_mode', isDark.toString());
-
-            // Update button text
-            updateDarkModeButton(isDark);
-
-            // Close menu
-            window.toggleMenu();
-
-            // Log for debugging
-            window.showDebugMessage(`Dark Mode ${isDark ? 'enabled' : 'disabled'}`, 'info');
-        }
-
-        function updateDarkModeButton(isDark) {
-            const button = document.getElementById('toggle-dark-mode-btn');
-            if (button) {
-                button.textContent = isDark ? 'Toggle Light Mode' : 'Toggle Dark Mode';
-            }
-        }
 
         // --- UI Utility Functions ---
         const modal = document.getElementById('modal');
@@ -934,16 +1033,6 @@
             // Show menu button again
             document.getElementById('menu-button').classList.remove('hidden');
         }
-
-        // --- Menu Functions ---
-        const menuButton = document.getElementById('menu-button');
-        const sideMenu = document.getElementById('side-menu');
-
-        window.toggleMenu = () => {
-            sideMenu.classList.toggle('open');
-            // Hide menu button when side menu is open, show when closed
-            menuButton.style.display = sideMenu.classList.contains('open') ? 'none' : 'block';
-        };
 
         // Helper function to clean search text
         function cleanSearchText(text) {
@@ -1411,14 +1500,19 @@
         document.addEventListener('DOMContentLoaded', () => {
             pdfViewerWrapper = document.getElementById('pdf-viewer-wrapper');
 
-            // Initialize dark mode
-            initializeDarkMode();
+            // Set up dark mode button event listener
+            const darkModeButton = document.getElementById('toggle-dark-mode-btn');
+            if (darkModeButton) {
+                darkModeButton.onclick = toggleDarkMode;
+            }
+
+            // Set up other menu button event listeners
+            document.getElementById('highlight-menu-item').onclick = window.handleHighlightClick;
+            document.getElementById('show-qr-btn').onclick = window.handleShowQrClick;
+            document.getElementById('exit-menu-item').onclick = window.exitApp;
 
             // Set up QR modal close button
             document.getElementById('qr-modal-close').onclick = closeQrModal;
-
-            // Set up Show QR button click handler
-            document.getElementById('show-qr-btn').onclick = window.handleShowQrClick;
 
             // Set up Clear All Highlights button
             clearAllHighlightsBtn.onclick = clearAllHighlights;
@@ -1426,13 +1520,20 @@
             initializeFirebase();
 
             // Attach event listener for menu button
-            menuButton.addEventListener('click', window.toggleMenu);
+            const menuButton = document.getElementById('menu-button');
+            if (menuButton) {
+                menuButton.addEventListener('click', window.toggleMenu);
+            }
+
             // Close menu if click outside (basic implementation)
             document.addEventListener('click', (event) => {
-                if (sideMenu.classList.contains('open') &&
-                    !sideMenu.contains(event.target) &&
-                    !menuButton.contains(event.target)) {
-                    window.toggleMenu();
+                const sideMenu = document.getElementById('side-menu');
+                if (sideMenu && menuButton) {
+                    if (sideMenu.classList.contains('open') &&
+                        !sideMenu.contains(event.target) &&
+                        !menuButton.contains(event.target)) {
+                        window.toggleMenu();
+                    }
                 }
             });
         });

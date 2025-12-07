@@ -16,6 +16,7 @@
             width: 100%;
             height: 100%;
             overflow: hidden;
+            transition: background-color 0.3s ease, color 0.3s ease;
         }
         /* Full-screen PDF container */
         #pdf-container {
@@ -27,6 +28,7 @@
             overflow-y: scroll;
             background-color: white;
             z-index: 1;
+            transition: background-color 0.3s ease;
         }
         canvas {
             display: block;
@@ -39,6 +41,7 @@
         #pdf-container::-webkit-scrollbar-thumb {
             background-color: #94a3b8;
             border-radius: 10px;
+            transition: background-color 0.3s ease;
         }
 
         /* --- Hamburger Menu Styles --- */
@@ -69,7 +72,7 @@
             background-color: #fff;
             box-shadow: -4px 0 10px rgba(0,0,0,0.1);
             transform: translateX(100%);
-            transition: transform 0.3s ease-out;
+            transition: transform 0.3s ease-out, background-color 0.3s ease;
             z-index: 999;
             padding: 1rem;
             display: flex;
@@ -97,7 +100,7 @@
             color: #1f2937;
             border: none;
             cursor: pointer;
-            transition: background-color 0.2s;
+            transition: background-color 0.2s, color 0.2s;
         }
         #side-menu button:hover {
             background-color: #e5e7eb;
@@ -117,6 +120,7 @@
             align-items: center;
             z-index: 100;
             padding: 2rem;
+            transition: background-color 0.3s ease;
         }
 
         /* QR Code display in modal - FULL SCREEN */
@@ -133,6 +137,7 @@
             justify-content: center;
             align-items: center;
             padding: 20px;
+            transition: background-color 0.3s ease;
         }
 
         #qr-modal-content {
@@ -169,6 +174,7 @@
             font-weight: bold;
             color: #1f2937;
             margin-bottom: 1.5rem;
+            transition: color 0.3s ease;
         }
 
         .qr-instructions {
@@ -176,6 +182,7 @@
             color: #4b5563;
             margin-bottom: 2rem;
             max-width: 600px;
+            transition: color 0.3s ease;
         }
 
         .session-info {
@@ -186,6 +193,7 @@
             font-size: 1.1rem;
             margin-bottom: 2rem;
             border: 2px solid #e5e7eb;
+            transition: background-color 0.3s ease, border-color 0.3s ease, color 0.3s ease;
         }
 
         .close-qr-btn {
@@ -226,6 +234,7 @@
             border-radius: 20px;
             font-size: 12px;
             z-index: 1000;
+            transition: background-color 0.3s ease;
         }
 
         /* Modal styles */
@@ -250,6 +259,7 @@
             width: 90%;
             max-height: 80vh;
             overflow-y: auto;
+            transition: background-color 0.3s ease, color 0.3s ease;
         }
 
         .modal-title {
@@ -257,11 +267,13 @@
             font-weight: bold;
             margin-bottom: 1rem;
             color: #1f2937;
+            transition: color 0.3s ease;
         }
 
         .modal-message {
             margin-bottom: 1.5rem;
             color: #4b5563;
+            transition: color 0.3s ease;
         }
 
         .modal-input {
@@ -271,6 +283,7 @@
             border-radius: 0.375rem;
             margin-bottom: 1.5rem;
             font-size: 1rem;
+            transition: background-color 0.3s ease, border-color 0.3s ease, color 0.3s ease;
         }
 
         .modal-input:focus {
@@ -291,6 +304,7 @@
             font-weight: 500;
             cursor: pointer;
             border: none;
+            transition: background-color 0.2s, color 0.2s;
         }
 
         .modal-button-primary {
@@ -319,6 +333,7 @@
             border: 1px solid #e5e7eb;
             border-radius: 0.375rem;
             padding: 0.5rem;
+            transition: background-color 0.3s ease, border-color 0.3s ease;
         }
 
         .bookmark-item {
@@ -328,6 +343,7 @@
             padding: 0.75rem;
             border-bottom: 1px solid #f3f4f6;
             cursor: pointer;
+            transition: background-color 0.2s, border-color 0.3s ease;
         }
 
         .bookmark-item:last-child {
@@ -346,11 +362,13 @@
             font-weight: 500;
             color: #1f2937;
             margin-bottom: 0.25rem;
+            transition: color 0.3s ease;
         }
 
         .bookmark-position {
             font-size: 0.875rem;
             color: #6b7280;
+            transition: color 0.3s ease;
         }
 
         .bookmark-actions {
@@ -364,6 +382,7 @@
             font-size: 0.875rem;
             border: none;
             cursor: pointer;
+            transition: background-color 0.2s, color 0.2s;
         }
 
         .bookmark-edit {
@@ -385,6 +404,7 @@
             padding: 2rem;
             color: #6b7280;
             font-style: italic;
+            transition: color 0.3s ease;
         }
 
         /* Search result highlighting */
@@ -413,6 +433,7 @@
             padding: 0.5rem;
             background-color: #f3f4f6;
             border-radius: 0.375rem;
+            transition: background-color 0.3s ease, color 0.3s ease;
         }
 
         /* --- Dark Mode Styles --- */
@@ -423,6 +444,10 @@
 
         body.dark-mode #pdf-container {
             background-color: #1e1e1e;
+        }
+
+        body.dark-mode #pdf-container::-webkit-scrollbar-thumb {
+            background-color: #4d4d4d;
         }
 
         body.dark-mode #side-menu {
@@ -560,9 +585,33 @@
             color: #b0b0b0;
         }
 
-        /* PDF scrollbar in dark mode */
-        body.dark-mode #pdf-container::-webkit-scrollbar-thumb {
-            background-color: #4d4d4d;
+        body.dark-mode #qr-modal {
+            background-color: #121212;
+        }
+
+        body.dark-mode #qr-code-display canvas {
+            border-color: #2d2d2d;
+        }
+
+        /* Text colors in dark mode */
+        body.dark-mode .text-gray-500 {
+            color: #a0a0a0 !important;
+        }
+
+        body.dark-mode .text-gray-600 {
+            color: #b0b0b0 !important;
+        }
+
+        body.dark-mode .text-gray-700 {
+            color: #c0c0c0 !important;
+        }
+
+        body.dark-mode .text-gray-800 {
+            color: #e0e0e0 !important;
+        }
+
+        body.dark-mode .text-gray-900 {
+            color: #f0f0f0 !important;
         }
     </style>
     <!-- PDF.js library -->
@@ -612,7 +661,7 @@
 
     <!-- Side Menu Panel -->
     <div id="side-menu">
-        <button class="self-end p-2 bg-transparent text-gray-500 hover:text-gray-800" onclick="window.toggleMenu()">
+        <button class="self-end p-2 bg-transparent text-gray-500 hover:text-gray-800" onclick="toggleMenu()">
             <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                 <path stroke-linecap="round" stroke-linejoin="-round" d="M6 18L18 6M6 6l12 12" />
             </svg>
@@ -621,7 +670,7 @@
             <li><button id="set-pdf-url-btn">Set PDF URL...</button></li>
             <li><button id="find-text-btn">Find...</button></li>
             <li><button id="bookmarks-btn">Bookmarks...</button></li>
-            <li><button id="toggle-dark-mode-btn" onclick="window.toggleDarkMode()">Toggle Dark Mode</button></li>
+            <li><button id="toggle-dark-mode-btn">Toggle Dark Mode</button></li>
             <li><button id="show-qr-btn" class="hidden">Show Actor QR Code</button></li>
             <li><button id="reset-btn">Reset Session</button></li>
         </ul>
@@ -724,6 +773,69 @@
         </div>
     </div>
 
+    <!-- Dark Mode Functions (outside module to be globally accessible) -->
+    <script>
+        // Global dark mode functions
+        function initializeDarkMode() {
+            // Check for saved dark mode preference or prefer-color-scheme
+            const savedMode = localStorage.getItem('playscroller_dark_mode');
+            const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+
+            // Apply dark mode if saved preference is true, or if no preference but system prefers dark
+            const shouldEnable = savedMode === 'true' || (!savedMode && prefersDark);
+
+            if (shouldEnable) {
+                document.body.classList.add('dark-mode');
+                updateDarkModeButton(true);
+            } else {
+                document.body.classList.remove('dark-mode');
+                updateDarkModeButton(false);
+            }
+
+            console.log('Dark mode initialized:', shouldEnable ? 'enabled' : 'disabled');
+        }
+
+        function toggleDarkMode() {
+            const isDark = document.body.classList.toggle('dark-mode');
+
+            // Save preference to localStorage (works like cookies for persistence)
+            localStorage.setItem('playscroller_dark_mode', isDark.toString());
+
+            // Update button text
+            updateDarkModeButton(isDark);
+
+            // Close menu
+            if (typeof window.toggleMenu === 'function') {
+                window.toggleMenu();
+            }
+
+            console.log('Dark mode toggled:', isDark ? 'enabled' : 'disabled');
+        }
+
+        function updateDarkModeButton(isDark) {
+            const button = document.getElementById('toggle-dark-mode-btn');
+            if (button) {
+                button.textContent = isDark ? 'Toggle Light Mode' : 'Toggle Dark Mode';
+                // Update onclick handler
+                button.onclick = toggleDarkMode;
+            }
+        }
+
+        // Initialize dark mode immediately when page loads
+        document.addEventListener('DOMContentLoaded', initializeDarkMode);
+
+        // Global menu toggle function
+        function toggleMenu() {
+            const sideMenu = document.getElementById('side-menu');
+            if (sideMenu) {
+                sideMenu.classList.toggle('open');
+            }
+        }
+
+        // Make toggleMenu globally available
+        window.toggleMenu = toggleMenu;
+    </script>
+
     <script type="module">
         // Import the functions you need from the SDKs you need
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
@@ -790,47 +902,6 @@
 
         function deleteCookie(name) {
             setCookie(name, "", -1);
-        }
-
-        // --- Dark Mode Functions ---
-        function initializeDarkMode() {
-            // Check for saved dark mode preference or prefer-color-scheme
-            const savedMode = localStorage.getItem('playscroller_dark_mode');
-            const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-
-            // Apply dark mode if saved preference is true, or if no preference but system prefers dark
-            const shouldEnable = savedMode === 'true' || (!savedMode && prefersDark);
-
-            if (shouldEnable) {
-                document.body.classList.add('dark-mode');
-                updateDarkModeButton(true);
-            } else {
-                document.body.classList.remove('dark-mode');
-                updateDarkModeButton(false);
-            }
-        }
-
-        function toggleDarkMode() {
-            const isDark = document.body.classList.toggle('dark-mode');
-
-            // Save preference to localStorage
-            localStorage.setItem('playscroller_dark_mode', isDark.toString());
-
-            // Update button text
-            updateDarkModeButton(isDark);
-
-            // Close menu
-            window.toggleMenu();
-
-            // Log for debugging
-            logDebug(`Dark Mode ${isDark ? 'enabled' : 'disabled'}`);
-        }
-
-        function updateDarkModeButton(isDark) {
-            const button = document.getElementById('toggle-dark-mode-btn');
-            if (button) {
-                button.textContent = isDark ? 'Toggle Light Mode' : 'Toggle Dark Mode';
-            }
         }
 
         // --- Bookmarks Functions ---
@@ -961,8 +1032,8 @@
                         <div class="bookmark-position">Page ${bookmark.page}, ${bookmark.percent.toFixed(0)}%</div>
                     </div>
                     <div class="bookmark-actions">
-                        <button class="bookmark-button bookmark-edit" onclick="event.stopPropagation(); editBookmark('${bookmark.id}')">Edit</button>
-                        <button class="bookmark-button bookmark-delete" onclick="event.stopPropagation(); deleteBookmark('${bookmark.id}')">Delete</button>
+                        <button class="bookmark-button bookmark-edit" onclick="event.stopPropagation(); window.editBookmark('${bookmark.id}')">Edit</button>
+                        <button class="bookmark-button bookmark-delete" onclick="event.stopPropagation(); window.deleteBookmark('${bookmark.id}')">Delete</button>
                     </div>
                 `;
 
@@ -1792,9 +1863,6 @@
                 // Load bookmarks from cookie
                 loadBookmarksFromCookie();
 
-                // Initialize dark mode
-                initializeDarkMode();
-
                 // Extract URL parameters
                 extractUrlParameters();
 
@@ -1901,7 +1969,7 @@
             updateStatus(`Starting session ${currentSessionId}...`);
 
             // Create session metadata in Realtime Database
-            const metadataRef = ref(rtdb, `sessions/${currentSessionId}/metadata`);
+            const metadataRef = ref(rtb, `sessions/${currentSessionId}/metadata`);
             const sessionMetadata = {
                 sm_id: userId,
                 pdf_url: pdfUrl,
@@ -1910,7 +1978,7 @@
             };
 
             // Initialize view state in Realtime Database
-            const viewStateRef = ref(rtdb, `sessions/${currentSessionId}/viewState`);
+            const viewStateRef = ref(rtb, `sessions/${currentSessionId}/viewState`);
             const initialViewState = {
                 page: 1,
                 y_percent: 0,
@@ -2074,6 +2142,12 @@
         document.addEventListener('DOMContentLoaded', () => {
             pdfContainer = document.getElementById('pdf-container');
 
+            // Set up dark mode button event listener
+            const darkModeButton = document.getElementById('toggle-dark-mode-btn');
+            if (darkModeButton) {
+                darkModeButton.onclick = toggleDarkMode;
+            }
+
             // Fix for "Set PDF URL..." button not working
             // Add click handler directly to the button
             document.getElementById('set-pdf-url-btn').onclick = function() {
@@ -2171,74 +2245,6 @@
                             goToPrevSearchResult();
                         }
                     }
-                }
-            });
-
-            // Bookmarks modal buttons
-            document.getElementById('bookmark-add-btn').onclick = function() {
-                const position = getCurrentPositionForBookmark();
-                if (!position) {
-                    showError('Cannot Bookmark', 'Unable to get current position.');
-                    return;
-                }
-
-                const bookmark = addBookmark(position.defaultName, position.page, position.percent);
-                updateStatus(`Bookmark added: ${bookmark.name}`);
-            };
-
-            document.getElementById('bookmarks-close-btn').onclick = closeBookmarksModal;
-
-            // Edit bookmark modal buttons
-            document.getElementById('edit-bookmark-save').onclick = function() {
-                const bookmarkId = document.getElementById('edit-bookmark-input').dataset.bookmarkId;
-                const newName = document.getElementById('edit-bookmark-input').value;
-
-                if (updateBookmark(bookmarkId, newName)) {
-                    closeEditBookmarkModal();
-                    updateStatus('Bookmark updated');
-                }
-            };
-
-            document.getElementById('edit-bookmark-cancel').onclick = closeEditBookmarkModal;
-
-            // Allow Enter key in Edit bookmark input
-            document.getElementById('edit-bookmark-input').addEventListener('keypress', (e) => {
-                if (e.key === 'Enter') {
-                    document.getElementById('edit-bookmark-save').click();
-                }
-            });
-
-            // QR modal close button
-            document.getElementById('qr-modal-close').onclick = closeQrModal;
-
-            // Error modal close button
-            document.getElementById('error-close').onclick = closeErrorModal;
-
-            // Start with URL button on welcome screen
-            document.getElementById('start-with-url-btn').onclick = function() {
-                document.getElementById('welcome-screen').classList.add('hidden');
-                showPdfUrlModal();
-            };
-
-            // PDF container scroll listener
-            pdfContainer.addEventListener('scroll', window.handleScroll);
-
-            // Close menu when clicking outside
-            document.addEventListener('click', (event) => {
-                const sideMenu = document.getElementById('side-menu');
-                const menuButton = document.getElementById('menu-button');
-
-                if (sideMenu.classList.contains('open') &&
-                    !sideMenu.contains(event.target) &&
-                    !menuButton.contains(event.target)) {
-                    window.toggleMenu();
-                }
-            });
-
-            // Allow Enter key in Find input
-            document.getElementById('find-text-input').addEventListener('keypress', (e) => {
-                if (e.key === 'Enter') {
-                    document.getElementById('find-ok-btn').click();
                 }
             });
 
