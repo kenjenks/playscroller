@@ -414,6 +414,156 @@
             background-color: #f3f4f6;
             border-radius: 0.375rem;
         }
+
+        /* --- Dark Mode Styles --- */
+        body.dark-mode {
+            background-color: #121212;
+            color: #e0e0e0;
+        }
+
+        body.dark-mode #pdf-container {
+            background-color: #1e1e1e;
+        }
+
+        body.dark-mode #side-menu {
+            background-color: #2d2d2d;
+            color: #e0e0e0;
+        }
+
+        body.dark-mode #side-menu button {
+            background-color: #3d3d3d;
+            color: #e0e0e0;
+        }
+
+        body.dark-mode #side-menu button:hover {
+            background-color: #4d4d4d;
+        }
+
+        body.dark-mode #welcome-screen {
+            background-color: #121212;
+            color: #e0e0e0;
+        }
+
+        body.dark-mode #welcome-screen .bg-white {
+            background-color: #2d2d2d !important;
+            color: #e0e0e0;
+        }
+
+        body.dark-mode #welcome-screen .text-gray-800 {
+            color: #e0e0e0;
+        }
+
+        body.dark-mode #welcome-screen .text-gray-600,
+        body.dark-mode #welcome-screen .text-gray-700 {
+            color: #b0b0b0;
+        }
+
+        body.dark-mode #welcome-screen .bg-gray-100 {
+            background-color: #3d3d3d;
+            color: #e0e0e0;
+        }
+
+        body.dark-mode #welcome-screen .bg-yellow-100 {
+            background-color: #5d4037;
+            color: #e0e0e0;
+        }
+
+        body.dark-mode .modal-content {
+            background-color: #2d2d2d;
+            color: #e0e0e0;
+        }
+
+        body.dark-mode .modal-title {
+            color: #e0e0e0;
+        }
+
+        body.dark-mode .modal-message {
+            color: #b0b0b0;
+        }
+
+        body.dark-mode .modal-input {
+            background-color: #3d3d3d;
+            border-color: #4d4d4d;
+            color: #e0e0e0;
+        }
+
+        body.dark-mode .modal-input:focus {
+            border-color: #6366f1;
+            box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.2);
+        }
+
+        body.dark-mode .modal-button-secondary {
+            background-color: #4d4d4d;
+            color: #e0e0e0;
+        }
+
+        body.dark-mode .modal-button-secondary:hover {
+            background-color: #5d5d5d;
+        }
+
+        body.dark-mode .bookmarks-list {
+            background-color: #2d2d2d;
+            border-color: #4d4d4d;
+        }
+
+        body.dark-mode .bookmark-item {
+            border-bottom-color: #3d3d3d;
+        }
+
+        body.dark-mode .bookmark-item:hover {
+            background-color: #3d3d3d;
+        }
+
+        body.dark-mode .bookmark-name {
+            color: #e0e0e0;
+        }
+
+        body.dark-mode .bookmark-position {
+            color: #a0a0a0;
+        }
+
+        body.dark-mode .bookmark-edit {
+            background-color: #1e3a8a;
+            color: #93c5fd;
+        }
+
+        body.dark-mode .bookmark-delete {
+            background-color: #7f1d1d;
+            color: #fca5a5;
+        }
+
+        body.dark-mode .no-bookmarks {
+            color: #a0a0a0;
+        }
+
+        body.dark-mode .search-info {
+            background-color: #3d3d3d;
+            color: #b0b0b0;
+        }
+
+        body.dark-mode #status-indicator {
+            background: rgba(0, 0, 0, 0.8);
+            color: #e0e0e0;
+        }
+
+        body.dark-mode .session-info {
+            background-color: #3d3d3d;
+            border-color: #4d4d4d;
+            color: #e0e0e0;
+        }
+
+        body.dark-mode .qr-title {
+            color: #e0e0e0;
+        }
+
+        body.dark-mode .qr-instructions {
+            color: #b0b0b0;
+        }
+
+        /* PDF scrollbar in dark mode */
+        body.dark-mode #pdf-container::-webkit-scrollbar-thumb {
+            background-color: #4d4d4d;
+        }
     </style>
     <!-- PDF.js library -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.11.338/pdf.min.js"></script>
@@ -471,6 +621,7 @@
             <li><button id="set-pdf-url-btn">Set PDF URL...</button></li>
             <li><button id="find-text-btn">Find...</button></li>
             <li><button id="bookmarks-btn">Bookmarks...</button></li>
+            <li><button id="toggle-dark-mode-btn" onclick="window.toggleDarkMode()">Toggle Dark Mode</button></li>
             <li><button id="show-qr-btn" class="hidden">Show Actor QR Code</button></li>
             <li><button id="reset-btn">Reset Session</button></li>
         </ul>
@@ -639,6 +790,47 @@
 
         function deleteCookie(name) {
             setCookie(name, "", -1);
+        }
+
+        // --- Dark Mode Functions ---
+        function initializeDarkMode() {
+            // Check for saved dark mode preference or prefer-color-scheme
+            const savedMode = localStorage.getItem('playscroller_dark_mode');
+            const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+
+            // Apply dark mode if saved preference is true, or if no preference but system prefers dark
+            const shouldEnable = savedMode === 'true' || (!savedMode && prefersDark);
+
+            if (shouldEnable) {
+                document.body.classList.add('dark-mode');
+                updateDarkModeButton(true);
+            } else {
+                document.body.classList.remove('dark-mode');
+                updateDarkModeButton(false);
+            }
+        }
+
+        function toggleDarkMode() {
+            const isDark = document.body.classList.toggle('dark-mode');
+
+            // Save preference to localStorage
+            localStorage.setItem('playscroller_dark_mode', isDark.toString());
+
+            // Update button text
+            updateDarkModeButton(isDark);
+
+            // Close menu
+            window.toggleMenu();
+
+            // Log for debugging
+            logDebug(`Dark Mode ${isDark ? 'enabled' : 'disabled'}`);
+        }
+
+        function updateDarkModeButton(isDark) {
+            const button = document.getElementById('toggle-dark-mode-btn');
+            if (button) {
+                button.textContent = isDark ? 'Toggle Light Mode' : 'Toggle Dark Mode';
+            }
         }
 
         // --- Bookmarks Functions ---
@@ -1599,6 +1791,9 @@
 
                 // Load bookmarks from cookie
                 loadBookmarksFromCookie();
+
+                // Initialize dark mode
+                initializeDarkMode();
 
                 // Extract URL parameters
                 extractUrlParameters();

@@ -354,6 +354,86 @@
             margin-top: 0.5rem;
             text-align: center;
         }
+
+        /* --- Dark Mode Styles --- */
+        body.dark-mode {
+            background-color: #121212;
+            color: #e0e0e0;
+        }
+
+        body.dark-mode #pdf-viewer-wrapper {
+            background-color: #1e1e1e;
+        }
+
+        body.dark-mode #side-menu {
+            background-color: #2d2d2d;
+            color: #e0e0e0;
+        }
+
+        body.dark-mode #side-menu button {
+            background-color: #3d3d3d;
+            color: #e0e0e0;
+        }
+
+        body.dark-mode #side-menu button:hover {
+            background-color: #4d4d4d;
+        }
+
+        body.dark-mode #modal .bg-white {
+            background-color: #2d2d2d !important;
+            color: #e0e0e0;
+        }
+
+        body.dark-mode .modal-title,
+        body.dark-mode .modal-message,
+        body.dark-mode .cookie-info,
+        body.dark-mode .highlight-input-label {
+            color: #e0e0e0;
+        }
+
+        body.dark-mode .highlight-input-group {
+            background-color: #3d3d3d;
+            border-color: #4d4d4d;
+        }
+
+        body.dark-mode .highlight-input {
+            background-color: #2d2d2d;
+            border-color: #4d4d4d;
+            color: #e0e0e0;
+        }
+
+        body.dark-mode .highlight-input:focus {
+            border-color: #6366f1;
+            box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.2);
+        }
+
+        body.dark-mode .clear-all-highlights-btn {
+            background-color: #7f1d1d;
+        }
+
+        body.dark-mode .clear-all-highlights-btn:hover {
+            background-color: #991b1b;
+        }
+
+        body.dark-mode #modal-buttons button {
+            color: #e0e0e0;
+        }
+
+        body.dark-mode #modal-cancel-btn {
+            background-color: #4d4d4d;
+        }
+
+        body.dark-mode #modal-cancel-btn:hover {
+            background-color: #5d5d5d;
+        }
+
+        body.dark-mode #modal-ok-btn {
+            background-color: #4f46e5;
+        }
+
+        body.dark-mode #modal-ok-btn:hover {
+            background-color: #4338ca;
+        }
     </style>
     <!-- PDF.js library -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.11.338/pdf.min.js"></script>
@@ -386,6 +466,7 @@
         </button>
         <ul>
             <li><button id="highlight-menu-item" onclick="window.handleHighlightClick()">Highlight Text...</button></li>
+            <li><button id="toggle-dark-mode-btn" onclick="window.toggleDarkMode()">Toggle Dark Mode</button></li>
             <li><button id="show-qr-btn" class="hidden">Show Session QR Code</button></li>
             <li><button id="exit-menu-item" onclick="window.exitApp()">Exit</button></li>
         </ul>
@@ -617,6 +698,47 @@
                 console.log(formattedMessage);
             }
         };
+
+        // --- Dark Mode Functions ---
+        function initializeDarkMode() {
+            // Check for saved dark mode preference or prefer-color-scheme
+            const savedMode = localStorage.getItem('playscroller_dark_mode');
+            const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+
+            // Apply dark mode if saved preference is true, or if no preference but system prefers dark
+            const shouldEnable = savedMode === 'true' || (!savedMode && prefersDark);
+
+            if (shouldEnable) {
+                document.body.classList.add('dark-mode');
+                updateDarkModeButton(true);
+            } else {
+                document.body.classList.remove('dark-mode');
+                updateDarkModeButton(false);
+            }
+        }
+
+        function toggleDarkMode() {
+            const isDark = document.body.classList.toggle('dark-mode');
+
+            // Save preference to localStorage
+            localStorage.setItem('playscroller_dark_mode', isDark.toString());
+
+            // Update button text
+            updateDarkModeButton(isDark);
+
+            // Close menu
+            window.toggleMenu();
+
+            // Log for debugging
+            window.showDebugMessage(`Dark Mode ${isDark ? 'enabled' : 'disabled'}`, 'info');
+        }
+
+        function updateDarkModeButton(isDark) {
+            const button = document.getElementById('toggle-dark-mode-btn');
+            if (button) {
+                button.textContent = isDark ? 'Toggle Light Mode' : 'Toggle Dark Mode';
+            }
+        }
 
         // --- UI Utility Functions ---
         const modal = document.getElementById('modal');
@@ -1287,7 +1409,10 @@
 
         // --- Initial Setup ---
         document.addEventListener('DOMContentLoaded', () => {
-            pdfViewerWrapper = document.getElementById('pdf-viewer-wrapper'); // Our main scrollable div
+            pdfViewerWrapper = document.getElementById('pdf-viewer-wrapper');
+
+            // Initialize dark mode
+            initializeDarkMode();
 
             // Set up QR modal close button
             document.getElementById('qr-modal-close').onclick = closeQrModal;
