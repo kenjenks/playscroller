@@ -1969,7 +1969,7 @@
             updateStatus(`Starting session ${currentSessionId}...`);
 
             // Create session metadata in Realtime Database
-            const metadataRef = ref(rtb, `sessions/${currentSessionId}/metadata`);
+            const metadataRef = ref(rtdb, `sessions/${currentSessionId}/metadata`);
             const sessionMetadata = {
                 sm_id: userId,
                 pdf_url: pdfUrl,
@@ -1978,7 +1978,7 @@
             };
 
             // Initialize view state in Realtime Database
-            const viewStateRef = ref(rtb, `sessions/${currentSessionId}/viewState`);
+            const viewStateRef = ref(rtdb, `sessions/${currentSessionId}/viewState`);
             const initialViewState = {
                 page: 1,
                 y_percent: 0,
