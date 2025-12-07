@@ -404,6 +404,16 @@
             border-radius: 2px;
             border: 2px solid rgba(255, 140, 0, 0.8);
         }
+
+        /* Enhanced search info */
+        .search-info {
+            font-size: 0.9rem;
+            color: #6b7280;
+            margin-bottom: 1rem;
+            padding: 0.5rem;
+            background-color: #f3f4f6;
+            border-radius: 0.375rem;
+        }
     </style>
     <!-- PDF.js library -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.11.338/pdf.min.js"></script>
@@ -454,7 +464,7 @@
     <div id="side-menu">
         <button class="self-end p-2 bg-transparent text-gray-500 hover:text-gray-800" onclick="window.toggleMenu()">
             <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+                <path stroke-linecap="round" stroke-linejoin="-round" d="M6 18L18 6M6 6l12 12" />
             </svg>
         </button>
         <ul>
@@ -485,7 +495,11 @@
         <div class="modal-content">
             <h3 class="modal-title">Find Text in PDF</h3>
             <p class="modal-message">Enter text to search for in the PDF:</p>
-            <input type="text" id="find-text-input" placeholder="Enter search text..." class="modal-input" autofocus>
+            <div class="search-info">
+                <p><strong>Enhanced Search:</strong> Finds multi-word phrases even if split across lines.</p>
+                <p>Example: Finds "to be" even if "to" ends one line and "be" starts the next.</p>
+            </div>
+            <input type="text" id="find-text-input" placeholder="Enter search text (multi-word phrases supported)..." class="modal-input" autofocus>
             <div id="find-results-info" class="text-sm text-gray-600 mb-4 hidden">
                 Found <span id="find-results-count">0</span> matches. Use buttons below to navigate.
             </div>
@@ -765,7 +779,7 @@
             });
         }
 
-        // --- Search Functions ---
+        // --- ENHANCED Search Functions for Multi-Word Phrases ---
         async function searchTextInPDF(searchText) {
             if (!pdfDoc) {
                 showError('No PDF Loaded', 'Please load a PDF first.');
@@ -776,21 +790,31 @@
             clearSearchHighlights();
 
             const searchTextLower = searchText.toLowerCase();
+            const searchWords = searchTextLower.split(/\s+/).filter(word => word.length > 0);
+
+            // If it's a single word, use simpler search
+            if (searchWords.length === 1) {
+                return await searchSingleWord(searchTextLower);
+            }
+
+            // For multi-word phrases, use advanced search
+            return await searchMultiWordPhrase(searchTextLower, searchWords);
+        }
+
+        async function searchSingleWord(word) {
+            const results = [];
 
             for (let pageNum = 1; pageNum <= pdfDoc.numPages; pageNum++) {
                 try {
                     const page = await pdfDoc.getPage(pageNum);
                     const textContent = await page.getTextContent();
 
-                    // Get canvas for this page
                     const canvas = document.getElementById(`pdf-page-${pageNum}`);
                     if (!canvas) continue;
 
-                    // Get viewport and scale
                     const viewport = page.getViewport({ scale: 1 });
                     const scale = canvas.width / viewport.width;
 
-                    // Search through text items
                     const textItems = textContent.items;
                     for (let i = 0; i < textItems.length; i++) {
                         const textItem = textItems[i];
@@ -798,29 +822,12 @@
                         const textLower = text.toLowerCase();
 
                         let searchIndex = 0;
-                        while ((searchIndex = textLower.indexOf(searchTextLower, searchIndex)) !== -1) {
-                            // Calculate position
-                            const totalWidth = textItem.width * scale;
-                            const charWidth = totalWidth / Math.max(1, text.length);
-                            const matchedWidth = searchText.length * charWidth;
-
-                            const baseX = textItem.transform[4] * scale;
-                            const offsetX = searchIndex * charWidth;
-                            const x = baseX + offsetX;
-
-                            const textHeight = (textItem.height || 15) * scale;
-                            const y = (viewport.height - textItem.transform[5]) * scale - textHeight;
-
-                            searchResults.push({
-                                page: pageNum,
-                                x: x,
-                                y: y,
-                                width: matchedWidth,
-                                height: textHeight,
-                                text: text.substring(searchIndex, searchIndex + searchText.length)
-                            });
-
-                            searchIndex += searchText.length;
+                        while ((searchIndex = textLower.indexOf(word, searchIndex)) !== -1) {
+                            const result = createSearchResult(textItem, searchIndex, word.length, scale, viewport, pageNum, text);
+                            if (result) {
+                                results.push(result);
+                            }
+                            searchIndex += word.length;
                         }
                     }
                 } catch (error) {
@@ -828,7 +835,395 @@
                 }
             }
 
-            return searchResults;
+            return results;
+        }
+
+        async function searchMultiWordPhrase(searchPhrase, searchWords) {
+            const results = [];
+
+            for (let pageNum = 1; pageNum <= pdfDoc.numPages; pageNum++) {
+                try {
+                    const page = await pdfDoc.getPage(pageNum);
+                    const textContent = await page.getTextContent();
+
+                    const canvas = document.getElementById(`pdf-page-${pageNum}`);
+                    if (!canvas) continue;
+
+                    const viewport = page.getViewport({ scale: 1 });
+                    const scale = canvas.width / viewport.width;
+
+                    const textItems = textContent.items;
+
+                    // Strategy 1: Try exact phrase match (with spaces between items)
+                    const exactResults = await searchExactPhrase(textItems, searchPhrase, scale, viewport, pageNum);
+                    results.push(...exactResults);
+
+                    // Strategy 2: Try phrase without spaces (for line breaks)
+                    if (exactResults.length === 0) {
+                        const noSpaceResults = await searchPhraseWithoutSpaces(textItems, searchWords, scale, viewport, pageNum);
+                        results.push(...noSpaceResults);
+                    }
+
+                    // Strategy 3: Try fuzzy matching across text items
+                    if (results.length === 0 && searchWords.length > 1) {
+                        const fuzzyResults = await searchFuzzyPhrase(textItems, searchWords, scale, viewport, pageNum);
+                        results.push(...fuzzyResults);
+                    }
+
+                } catch (error) {
+                    console.error(`Error searching page ${pageNum}:`, error);
+                }
+            }
+
+            return results;
+        }
+
+        async function searchExactPhrase(textItems, searchPhrase, scale, viewport, pageNum) {
+            const results = [];
+
+            // Build concatenated text from all text items WITH estimated spaces
+            let pageTextWithSpaces = '';
+            let pageTextWithoutSpaces = '';
+            const textPositions = [];
+
+            for (let i = 0; i < textItems.length; i++) {
+                const textItem = textItems[i];
+                const text = textItem.str;
+
+                // Add to pageTextWithoutSpaces
+                pageTextWithoutSpaces += text;
+
+                // For pageTextWithSpaces, estimate if there should be a space
+                if (i > 0) {
+                    const prevItem = textItems[i - 1];
+                    const prevX = prevItem.transform[4];
+                    const prevWidth = prevItem.width;
+                    const currentX = textItem.transform[4];
+                    const charWidth = prevWidth / Math.max(1, prevItem.str.length);
+
+                    // If the distance suggests a gap, add a space
+                    if (currentX - (prevX + prevWidth) > charWidth * 0.5) {
+                        pageTextWithSpaces += ' ';
+                    }
+                }
+
+                pageTextWithSpaces += text;
+
+                // Store position information
+                textPositions.push({
+                    text: text,
+                    transform: textItem.transform,
+                    width: textItem.width,
+                    height: textItem.height || 15,
+                    startIndexWithSpaces: pageTextWithSpaces.length - text.length,
+                    endIndexWithSpaces: pageTextWithSpaces.length,
+                    startIndexWithoutSpaces: pageTextWithoutSpaces.length - text.length,
+                    endIndexWithoutSpaces: pageTextWithoutSpaces.length
+                });
+            }
+
+            // Try matching with spaces first
+            const pageTextWithSpacesLower = pageTextWithSpaces.toLowerCase();
+            let searchIndex = 0;
+
+            while ((searchIndex = pageTextWithSpacesLower.indexOf(searchPhrase, searchIndex)) !== -1) {
+                const matchStart = searchIndex;
+                const matchEnd = searchIndex + searchPhrase.length;
+
+                // Find which text items contain this match
+                const matchingItems = findMatchingItems(matchStart, matchEnd, textPositions, true);
+
+                if (matchingItems.length > 0) {
+                    for (const match of matchingItems) {
+                        const result = createSearchResultFromMatch(match, scale, viewport, pageNum, searchPhrase);
+                        if (result) {
+                            results.push(result);
+                        }
+                    }
+                }
+
+                searchIndex = matchEnd;
+            }
+
+            return results;
+        }
+
+        async function searchPhraseWithoutSpaces(textItems, searchWords, scale, viewport, pageNum) {
+            const results = [];
+
+            // Build text without any spaces
+            let concatenatedText = '';
+            const textPositions = [];
+
+            for (let i = 0; i < textItems.length; i++) {
+                const textItem = textItems[i];
+                const text = textItem.str;
+
+                const startIndex = concatenatedText.length;
+                concatenatedText += text;
+                const endIndex = concatenatedText.length;
+
+                textPositions.push({
+                    text: text,
+                    transform: textItem.transform,
+                    width: textItem.width,
+                    height: textItem.height || 15,
+                    startIndex: startIndex,
+                    endIndex: endIndex,
+                    itemIndex: i
+                });
+            }
+
+            // Remove spaces from search phrase for matching
+            const searchPhraseNoSpaces = searchWords.join('');
+            const concatenatedTextLower = concatenatedText.toLowerCase();
+            let searchIndex = 0;
+
+            while ((searchIndex = concatenatedTextLower.indexOf(searchPhraseNoSpaces, searchIndex)) !== -1) {
+                const matchStart = searchIndex;
+                const matchEnd = searchIndex + searchPhraseNoSpaces.length;
+
+                // Find which text items contain this match
+                const matchingItems = findMatchingItemsSimple(matchStart, matchEnd, textPositions);
+
+                if (matchingItems.length > 0) {
+                    // Create a combined result for the entire phrase
+                    const result = createCombinedResult(matchingItems, scale, viewport, pageNum, searchWords.join(' '));
+                    if (result) {
+                        results.push(result);
+                    }
+                }
+
+                searchIndex = matchEnd;
+            }
+
+            return results;
+        }
+
+        async function searchFuzzyPhrase(textItems, searchWords, scale, viewport, pageNum) {
+            const results = [];
+
+            // For each position where first word appears
+            for (let i = 0; i < textItems.length - searchWords.length + 1; i++) {
+                let matchesAllWords = true;
+                const matchedItems = [];
+
+                // Check if subsequent text items contain the search words
+                for (let j = 0; j < searchWords.length; j++) {
+                    const textItem = textItems[i + j];
+                    const text = textItem.str.toLowerCase();
+
+                    if (text.includes(searchWords[j])) {
+                        // Find position of the word within this text item
+                        const wordIndex = text.indexOf(searchWords[j]);
+                        matchedItems.push({
+                            item: textItem,
+                            wordIndex: wordIndex,
+                            wordLength: searchWords[j].length,
+                            word: searchWords[j]
+                        });
+                    } else {
+                        matchesAllWords = false;
+                        break;
+                    }
+                }
+
+                if (matchesAllWords && matchedItems.length === searchWords.length) {
+                    // Check if these items are reasonably close (not too far apart)
+                    if (areItemsCloseTogether(matchedItems)) {
+                        const result = createCombinedResultFromItems(matchedItems, scale, viewport, pageNum, searchWords.join(' '));
+                        if (result) {
+                            results.push(result);
+                        }
+                    }
+                }
+            }
+
+            return results;
+        }
+
+        function findMatchingItems(matchStart, matchEnd, textPositions, useWithSpaces) {
+            const matchingItems = [];
+            let currentPos = matchStart;
+
+            while (currentPos < matchEnd) {
+                const itemIndex = textPositions.findIndex(item => {
+                    const startIndex = useWithSpaces ? item.startIndexWithSpaces : item.startIndexWithoutSpaces;
+                    const endIndex = useWithSpaces ? item.endIndexWithSpaces : item.endIndexWithoutSpaces;
+                    return currentPos >= startIndex && currentPos < endIndex;
+                });
+
+                if (itemIndex === -1) break;
+
+                const item = textPositions[itemIndex];
+                const startIndex = useWithSpaces ? item.startIndexWithSpaces : item.endIndexWithoutSpaces;
+
+                matchingItems.push({
+                    item: item,
+                    itemIndex: itemIndex,
+                    matchStartInItem: Math.max(0, matchStart - startIndex),
+                    matchEndInItem: Math.min(item.text.length, matchEnd - startIndex)
+                });
+
+                currentPos = useWithSpaces ? item.endIndexWithSpaces : item.endIndexWithoutSpaces;
+            }
+
+            return matchingItems;
+        }
+
+        function findMatchingItemsSimple(matchStart, matchEnd, textPositions) {
+            const matchingItems = [];
+            let currentPos = matchStart;
+
+            while (currentPos < matchEnd) {
+                const itemIndex = textPositions.findIndex(item => {
+                    return currentPos >= item.startIndex && currentPos < item.endIndex;
+                });
+
+                if (itemIndex === -1) break;
+
+                const item = textPositions[itemIndex];
+
+                matchingItems.push({
+                    item: item,
+                    itemIndex: itemIndex,
+                    matchStartInItem: Math.max(0, matchStart - item.startIndex),
+                    matchEndInItem: Math.min(item.text.length, matchEnd - item.startIndex)
+                });
+
+                currentPos = item.endIndex;
+            }
+
+            return matchingItems;
+        }
+
+        function areItemsCloseTogether(matchedItems) {
+            if (matchedItems.length <= 1) return true;
+
+            for (let i = 1; i < matchedItems.length; i++) {
+                const prevItem = matchedItems[i - 1].item;
+                const currentItem = matchedItems[i].item;
+
+                // Check vertical position (should be similar for same line)
+                const prevY = prevItem.transform[5];
+                const currentY = currentItem.transform[5];
+                const yDiff = Math.abs(prevY - currentY);
+
+                // If items are more than 20 units apart vertically, they're probably on different lines
+                if (yDiff > 20) {
+                    return false;
+                }
+            }
+
+            return true;
+        }
+
+        function createSearchResult(textItem, startIndex, length, scale, viewport, pageNum, originalText) {
+            const totalWidth = textItem.width * scale;
+            const charWidth = totalWidth / Math.max(1, textItem.str.length);
+            const matchedWidth = length * charWidth;
+
+            const baseX = textItem.transform[4] * scale;
+            const offsetX = startIndex * charWidth;
+            const x = baseX + offsetX;
+
+            const textHeight = (textItem.height || 15) * scale;
+            const y = (viewport.height - textItem.transform[5]) * scale - textHeight;
+
+            return {
+                page: pageNum,
+                x: x,
+                y: y,
+                width: matchedWidth,
+                height: textHeight,
+                text: originalText.substring(startIndex, startIndex + length)
+            };
+        }
+
+        function createSearchResultFromMatch(match, scale, viewport, pageNum, searchText) {
+            const item = match.item;
+            const matchStartInItem = match.matchStartInItem;
+            const matchEndInItem = match.matchEndInItem;
+
+            const totalWidth = item.width * scale;
+            const charWidth = totalWidth / Math.max(1, item.text.length);
+            const matchedWidth = (matchEndInItem - matchStartInItem) * charWidth;
+
+            const baseX = item.transform[4] * scale;
+            const offsetX = matchStartInItem * charWidth;
+            const x = baseX + offsetX;
+
+            const textHeight = (item.height || 15) * scale;
+            const y = (viewport.height - item.transform[5]) * scale - textHeight;
+
+            return {
+                page: pageNum,
+                x: x,
+                y: y,
+                width: matchedWidth,
+                height: textHeight,
+                text: item.text.substring(matchStartInItem, matchEndInItem)
+            };
+        }
+
+        function createCombinedResult(matchingItems, scale, viewport, pageNum, searchText) {
+            if (matchingItems.length === 0) return null;
+
+            // For combined results, create a result for the first matching item
+            const firstMatch = matchingItems[0];
+            const item = firstMatch.item;
+
+            const totalWidth = item.width * scale;
+            const charWidth = totalWidth / Math.max(1, item.text.length);
+            const matchedWidth = (firstMatch.matchEndInItem - firstMatch.matchStartInItem) * charWidth;
+
+            const baseX = item.transform[4] * scale;
+            const offsetX = firstMatch.matchStartInItem * charWidth;
+            const x = baseX + offsetX;
+
+            const textHeight = (item.height || 15) * scale;
+            const y = (viewport.height - item.transform[5]) * scale - textHeight;
+
+            return {
+                page: pageNum,
+                x: x,
+                y: y,
+                width: matchedWidth,
+                height: textHeight,
+                text: searchText,
+                isCombined: true,
+                matchingItems: matchingItems
+            };
+        }
+
+        function createCombinedResultFromItems(matchedItems, scale, viewport, pageNum, searchText) {
+            if (matchedItems.length === 0) return null;
+
+            // Use the first item for positioning
+            const firstItem = matchedItems[0];
+            const item = firstItem.item;
+
+            const totalWidth = item.width * scale;
+            const charWidth = totalWidth / Math.max(1, item.text.length);
+            const matchedWidth = firstItem.wordLength * charWidth;
+
+            const baseX = item.transform[4] * scale;
+            const offsetX = firstItem.wordIndex * charWidth;
+            const x = baseX + offsetX;
+
+            const textHeight = (item.height || 15) * scale;
+            const y = (viewport.height - item.transform[5]) * scale - textHeight;
+
+            return {
+                page: pageNum,
+                x: x,
+                y: y,
+                width: matchedWidth,
+                height: textHeight,
+                text: searchText,
+                isCombined: true,
+                matchedItems: matchedItems
+            };
         }
 
         function clearSearchHighlights() {
@@ -892,7 +1287,7 @@
                     currentHighlight.style.left = `${currentResult.x - 4}px`;
                     currentHighlight.style.top = `${currentResult.y - 2}px`;
                     currentHighlight.style.width = `${currentResult.width + 8}px`;
-                    currentHighlight.style.height = `${currentResult.height + 7}px`;
+                    currentHighlight.style.height = `${result.height + 7}px`;
                     currentHighlight.style.position = 'absolute';
 
                     const canvasParent = canvas.parentNode;
