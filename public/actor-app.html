@@ -46,6 +46,7 @@
             margin: 0 auto 8px auto; /* Centered, with bottom margin */
             box-shadow: 0 2px 5px rgba(0,0,0,0.1); /* Subtle shadow for visual separation */
             display: block; /* Ensure it takes up full width for centering */
+            transition: box-shadow 0.3s ease;
         }
 
         canvas {
@@ -55,6 +56,7 @@
             top: 0;
             left: 0;
             z-index: 1; /* Ensure canvas is below overlay */
+            transition: background-color 0.3s ease;
         }
 
         /* This is the new container for highlights */
@@ -400,6 +402,19 @@
             background-color: #1e1e1e;
         }
 
+        body.dark-mode .pdf-page-wrapper {
+            box-shadow: 0 2px 5px rgba(0,0,0,0.3);
+        }
+
+        body.dark-mode canvas {
+            background-color: #2d2d2d !important;
+        }
+
+        /* Dark mode filter for PDF content - makes white text dark and vice versa */
+        body.dark-mode canvas {
+            filter: invert(0.93) hue-rotate(180deg) contrast(1.1);
+        }
+
         body.dark-mode #side-menu {
             background-color: #2d2d2d;
             color: #e0e0e0;
@@ -505,6 +520,20 @@
         body.dark-mode .highlight-loading {
             background-color: rgba(0, 0, 0, 0.9);
             color: #e0e0e0;
+        }
+
+        /* Adjust highlight colors for dark mode */
+        body.dark-mode .highlight-yellow {
+            background-color: rgba(255, 255, 0, 0.3);
+        }
+        body.dark-mode .highlight-pink {
+            background-color: rgba(255, 182, 193, 0.3);
+        }
+        body.dark-mode .highlight-blue {
+            background-color: rgba(173, 216, 230, 0.3);
+        }
+        body.dark-mode .highlight-green {
+            background-color: rgba(144, 238, 144, 0.3);
         }
     </style>
     <!-- PDF.js library -->
@@ -1121,7 +1150,7 @@
             }
         }
 
-        // --- PDF Rendering Functions ---
+        // --- PDF Rendering Functions (UPDATED FOR DARK MODE) ---
         async function renderPage(pageNumber, pdfPage) {
             // Scale to fit width of the viewer wrapper (which is 100vw)
             const scale = pdfViewerWrapper.clientWidth / pdfPage.getViewport({ scale: 1 }).width;
@@ -1134,6 +1163,16 @@
             canvas.id = `pdf-page-${pageNumber}`;
             canvas.setAttribute('data-page', pageNumber);
             // No absolute positioning here, will be handled by parent for full width
+
+            // Check if dark mode is enabled
+            const isDarkMode = document.body.classList.contains('dark-mode');
+
+            // Set canvas background for dark mode
+            if (isDarkMode) {
+                // Fill with dark background first
+                context.fillStyle = '#2d2d2d';
+                context.fillRect(0, 0, canvas.width, canvas.height);
+            }
 
             const pageDiv = document.createElement('div');
             pageDiv.id = `page-div-${pageNumber}`;
@@ -1152,7 +1191,13 @@
             pageDiv.appendChild(highlightOverlay); // Append overlay AFTER canvas for z-index
             pdfViewerWrapper.appendChild(pageDiv);
 
-            await pdfPage.render({ canvasContext: context, viewport: viewport }).promise;
+            // Render the PDF page with appropriate background color
+            await pdfPage.render({
+                canvasContext: context,
+                viewport: viewport,
+                // Set background for proper rendering
+                background: isDarkMode ? '#2d2d2d' : '#ffffff'
+            }).promise;
 
             // Store text content and viewport for later highlighting
             const textContent = await pdfPage.getTextContent();

@@ -33,6 +33,7 @@
         canvas {
             display: block;
             margin: 0 auto;
+            transition: background-color 0.3s ease;
         }
         /* Custom scrollbar */
         #pdf-container::-webkit-scrollbar {
@@ -167,6 +168,7 @@
             height: auto !important;
             border: 10px solid white;
             box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+            transition: border-color 0.3s ease;
         }
 
         .qr-title {
@@ -446,6 +448,15 @@
             background-color: #1e1e1e;
         }
 
+        body.dark-mode canvas {
+            background-color: #2d2d2d !important;
+        }
+
+        /* Dark mode filter for PDF content - makes white text dark and vice versa */
+        body.dark-mode canvas {
+            filter: invert(0.93) hue-rotate(180deg) contrast(1.1);
+        }
+
         body.dark-mode #pdf-container::-webkit-scrollbar-thumb {
             background-color: #4d4d4d;
         }
@@ -612,6 +623,16 @@
 
         body.dark-mode .text-gray-900 {
             color: #f0f0f0 !important;
+        }
+
+        /* Adjust search highlights for dark mode */
+        body.dark-mode .search-highlight {
+            background-color: rgba(255, 255, 0, 0.3);
+        }
+
+        body.dark-mode .current-search-highlight {
+            background-color: rgba(255, 165, 0, 0.5);
+            border-color: rgba(255, 140, 0, 0.7);
         }
     </style>
     <!-- PDF.js library -->
@@ -792,7 +813,7 @@
                 updateDarkModeButton(false);
             }
 
-            console.log('Dark mode initialized:', shouldEnable ? 'enabled' : 'disabled');
+            console.log('SM Dark mode initialized:', shouldEnable ? 'enabled' : 'disabled');
         }
 
         function toggleDarkMode() {
@@ -809,7 +830,7 @@
                 window.toggleMenu();
             }
 
-            console.log('Dark mode toggled:', isDark ? 'enabled' : 'disabled');
+            console.log('SM Dark mode toggled:', isDark ? 'enabled' : 'disabled');
         }
 
         function updateDarkModeButton(isDark) {
