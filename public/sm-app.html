@@ -227,6 +227,183 @@
             font-size: 12px;
             z-index: 1000;
         }
+
+        /* Modal styles */
+        .modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: rgba(0, 0, 0, 0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 10000;
+        }
+
+        .modal-content {
+            background: white;
+            border-radius: 0.5rem;
+            padding: 1.5rem;
+            max-width: 500px;
+            width: 90%;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+
+        .modal-title {
+            font-size: 1.5rem;
+            font-weight: bold;
+            margin-bottom: 1rem;
+            color: #1f2937;
+        }
+
+        .modal-message {
+            margin-bottom: 1.5rem;
+            color: #4b5563;
+        }
+
+        .modal-input {
+            width: 100%;
+            padding: 0.75rem;
+            border: 1px solid #d1d5db;
+            border-radius: 0.375rem;
+            margin-bottom: 1.5rem;
+            font-size: 1rem;
+        }
+
+        .modal-input:focus {
+            outline: none;
+            border-color: #6366f1;
+            box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+        }
+
+        .modal-buttons {
+            display: flex;
+            justify-content: flex-end;
+            gap: 0.75rem;
+        }
+
+        .modal-button {
+            padding: 0.5rem 1rem;
+            border-radius: 0.375rem;
+            font-weight: 500;
+            cursor: pointer;
+            border: none;
+        }
+
+        .modal-button-primary {
+            background-color: #4f46e5;
+            color: white;
+        }
+
+        .modal-button-primary:hover {
+            background-color: #4338ca;
+        }
+
+        .modal-button-secondary {
+            background-color: #e5e7eb;
+            color: #374151;
+        }
+
+        .modal-button-secondary:hover {
+            background-color: #d1d5db;
+        }
+
+        /* Bookmarks list */
+        .bookmarks-list {
+            max-height: 300px;
+            overflow-y: auto;
+            margin-bottom: 1rem;
+            border: 1px solid #e5e7eb;
+            border-radius: 0.375rem;
+            padding: 0.5rem;
+        }
+
+        .bookmark-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0.75rem;
+            border-bottom: 1px solid #f3f4f6;
+            cursor: pointer;
+        }
+
+        .bookmark-item:last-child {
+            border-bottom: none;
+        }
+
+        .bookmark-item:hover {
+            background-color: #f9fafb;
+        }
+
+        .bookmark-info {
+            flex-grow: 1;
+        }
+
+        .bookmark-name {
+            font-weight: 500;
+            color: #1f2937;
+            margin-bottom: 0.25rem;
+        }
+
+        .bookmark-position {
+            font-size: 0.875rem;
+            color: #6b7280;
+        }
+
+        .bookmark-actions {
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        .bookmark-button {
+            padding: 0.25rem 0.5rem;
+            border-radius: 0.25rem;
+            font-size: 0.875rem;
+            border: none;
+            cursor: pointer;
+        }
+
+        .bookmark-edit {
+            background-color: #dbeafe;
+            color: #1e40af;
+        }
+
+        .bookmark-delete {
+            background-color: #fee2e2;
+            color: #991b1b;
+        }
+
+        .bookmark-button:hover {
+            opacity: 0.9;
+        }
+
+        .no-bookmarks {
+            text-align: center;
+            padding: 2rem;
+            color: #6b7280;
+            font-style: italic;
+        }
+
+        /* Search result highlighting */
+        .search-highlight {
+            background-color: rgba(255, 255, 0, 0.4);
+            position: absolute;
+            z-index: 100;
+            pointer-events: none;
+            border-radius: 2px;
+        }
+
+        .current-search-highlight {
+            background-color: rgba(255, 165, 0, 0.6);
+            position: absolute;
+            z-index: 101;
+            pointer-events: none;
+            border-radius: 2px;
+            border: 2px solid rgba(255, 140, 0, 0.8);
+        }
     </style>
     <!-- PDF.js library -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.11.338/pdf.min.js"></script>
@@ -282,22 +459,72 @@
         </button>
         <ul>
             <li><button id="set-pdf-url-btn">Set PDF URL...</button></li>
+            <li><button id="find-text-btn">Find...</button></li>
+            <li><button id="bookmarks-btn">Bookmarks...</button></li>
             <li><button id="show-qr-btn" class="hidden">Show Actor QR Code</button></li>
             <li><button id="reset-btn">Reset Session</button></li>
         </ul>
     </div>
 
     <!-- Modal for PDF URL Input -->
-    <div id="pdf-url-modal" class="fixed inset-0 bg-gray-600 bg-opacity-50 hidden items-center justify-center z-50">
-        <div class="bg-white p-6 rounded-lg shadow-xl max-w-md w-full">
-            <h3 class="text-xl font-bold mb-4 text-gray-800">Set PDF Script URL</h3>
-            <p class="text-gray-700 mb-4">Enter the public URL of your script PDF:</p>
-            <input type="url" id="pdf-url-input" placeholder="e.g., https://example.com/script.pdf"
-                   class="mt-1 block w-full rounded-lg border-gray-300 shadow-sm p-3 border focus:border-indigo-500 focus:ring-indigo-500 mb-4">
+    <div id="pdf-url-modal" class="modal hidden">
+        <div class="modal-content">
+            <h3 class="modal-title">Set PDF Script URL</h3>
+            <p class="modal-message">Enter the public URL of your script PDF:</p>
+            <input type="url" id="pdf-url-input" placeholder="e.g., https://example.com/script.pdf" class="modal-input">
             <p class="text-sm text-gray-500 mb-4">Note: The PDF must be publicly accessible with CORS headers enabled.</p>
-            <div class="flex justify-end space-x-4">
-                <button id="pdf-url-cancel" class="py-2 px-4 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300">Cancel</button>
-                <button id="pdf-url-ok" class="py-2 px-4 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700">Load PDF</button>
+            <div class="modal-buttons">
+                <button id="pdf-url-cancel" class="modal-button modal-button-secondary">Cancel</button>
+                <button id="pdf-url-ok" class="modal-button modal-button-primary">Load PDF</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal for Find Text -->
+    <div id="find-modal" class="modal hidden">
+        <div class="modal-content">
+            <h3 class="modal-title">Find Text in PDF</h3>
+            <p class="modal-message">Enter text to search for in the PDF:</p>
+            <input type="text" id="find-text-input" placeholder="Enter search text..." class="modal-input" autofocus>
+            <div id="find-results-info" class="text-sm text-gray-600 mb-4 hidden">
+                Found <span id="find-results-count">0</span> matches. Use buttons below to navigate.
+            </div>
+            <div class="modal-buttons">
+                <button id="find-prev-btn" class="modal-button modal-button-secondary hidden">Previous</button>
+                <button id="find-next-btn" class="modal-button modal-button-secondary hidden">Next</button>
+                <button id="find-cancel-btn" class="modal-button modal-button-secondary">Cancel</button>
+                <button id="find-ok-btn" class="modal-button modal-button-primary">Find</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal for Bookmarks -->
+    <div id="bookmarks-modal" class="modal hidden">
+        <div class="modal-content">
+            <h3 class="modal-title">Bookmarks</h3>
+            <p class="modal-message">Manage your bookmarks. Click to jump to a location.</p>
+
+            <div id="bookmarks-list" class="bookmarks-list">
+                <!-- Bookmarks will be dynamically added here -->
+                <div class="no-bookmarks">No bookmarks yet. Create one using the button below.</div>
+            </div>
+
+            <div class="modal-buttons">
+                <button id="bookmark-add-btn" class="modal-button modal-button-primary">Add Current Position</button>
+                <button id="bookmarks-close-btn" class="modal-button modal-button-secondary">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal for Edit Bookmark -->
+    <div id="edit-bookmark-modal" class="modal hidden">
+        <div class="modal-content">
+            <h3 class="modal-title">Edit Bookmark</h3>
+            <p class="modal-message">Edit bookmark name (leave blank to delete):</p>
+            <input type="text" id="edit-bookmark-input" placeholder="Bookmark name..." class="modal-input" autofocus>
+            <div class="modal-buttons">
+                <button id="edit-bookmark-cancel" class="modal-button modal-button-secondary">Cancel</button>
+                <button id="edit-bookmark-save" class="modal-button modal-button-primary">Save</button>
             </div>
         </div>
     </div>
@@ -322,11 +549,13 @@
     </div>
 
     <!-- Error Modal -->
-    <div id="error-modal" class="fixed inset-0 bg-gray-600 bg-opacity-50 hidden items-center justify-center z-50">
-        <div class="bg-white p-6 rounded-lg shadow-xl max-w-sm w-full">
-            <h3 id="error-title" class="text-xl font-bold mb-4 text-red-600">Error</h3>
-            <p id="error-message" class="text-gray-700 mb-6"></p>
-            <button id="error-close" class="w-full py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700">Close</button>
+    <div id="error-modal" class="modal hidden">
+        <div class="modal-content">
+            <h3 id="error-title" class="modal-title text-red-600">Error</h3>
+            <p id="error-message" class="modal-message"></p>
+            <div class="modal-buttons">
+                <button id="error-close" class="modal-button modal-button-primary">Close</button>
+            </div>
         </div>
     </div>
 
@@ -357,8 +586,375 @@
         let currentPdfUrl = null;
         let pdfUrlFromParam = null;
 
+        // Search functionality
+        let searchResults = [];
+        let currentSearchIndex = -1;
+        let searchHighlights = [];
+
+        // Bookmarks functionality
+        const BOOKMARKS_COOKIE_NAME = 'playscroller_bookmarks';
+        const BOOKMARKS_COOKIE_EXPIRY_DAYS = 365;
+        let bookmarks = [];
+
         // Ensure PDF.js worker is set up
         pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.11.338/pdf.worker.min.js';
+
+        // --- Cookie Management Functions ---
+        function setCookie(name, value, days) {
+            let expires = "";
+            if (days) {
+                const date = new Date();
+                date.setTime(date.getTime() + (days * 24 * 60 * 60 * 1000));
+                expires = "; expires=" + date.toUTCString();
+            }
+            document.cookie = name + "=" + encodeURIComponent(value) + expires + "; path=/; SameSite=Lax";
+        }
+
+        function getCookie(name) {
+            const nameEQ = name + "=";
+            const ca = document.cookie.split(';');
+            for (let i = 0; i < ca.length; i++) {
+                let c = ca[i];
+                while (c.charAt(0) === ' ') c = c.substring(1, c.length);
+                if (c.indexOf(nameEQ) === 0) {
+                    return decodeURIComponent(c.substring(nameEQ.length, c.length));
+                }
+            }
+            return null;
+        }
+
+        function deleteCookie(name) {
+            setCookie(name, "", -1);
+        }
+
+        // --- Bookmarks Functions ---
+        function saveBookmarksToCookie() {
+            try {
+                const bookmarksData = JSON.stringify(bookmarks);
+                setCookie(BOOKMARKS_COOKIE_NAME, bookmarksData, BOOKMARKS_COOKIE_EXPIRY_DAYS);
+                console.log('Bookmarks saved to cookie:', bookmarks);
+            } catch (error) {
+                console.error('Error saving bookmarks to cookie:', error);
+            }
+        }
+
+        function loadBookmarksFromCookie() {
+            try {
+                const cookieData = getCookie(BOOKMARKS_COOKIE_NAME);
+                if (cookieData) {
+                    const parsedData = JSON.parse(cookieData);
+                    if (Array.isArray(parsedData)) {
+                        bookmarks = parsedData;
+                        // Sort bookmarks by page number and percent
+                        bookmarks.sort((a, b) => {
+                            if (a.page === b.page) {
+                                return a.percent - b.percent;
+                            }
+                            return a.page - b.page;
+                        });
+                        console.log('Bookmarks loaded from cookie:', bookmarks);
+                        return true;
+                    }
+                }
+            } catch (error) {
+                console.error('Error loading bookmarks from cookie:', error);
+                deleteCookie(BOOKMARKS_COOKIE_NAME);
+            }
+            return false;
+        }
+
+        function addBookmark(name, page, percent) {
+            const bookmark = {
+                id: Date.now().toString(36) + Math.random().toString(36).substring(2),
+                name: name,
+                page: page,
+                percent: percent,
+                timestamp: Date.now()
+            };
+
+            bookmarks.push(bookmark);
+            // Sort bookmarks after adding
+            bookmarks.sort((a, b) => {
+                if (a.page === b.page) {
+                    return a.percent - b.percent;
+                }
+                return a.page - b.page;
+            });
+
+            saveBookmarksToCookie();
+            renderBookmarksList();
+            return bookmark;
+        }
+
+        function updateBookmark(id, newName) {
+            const index = bookmarks.findIndex(b => b.id === id);
+            if (index !== -1) {
+                if (newName.trim() === "") {
+                    // Remove bookmark if name is blank
+                    bookmarks.splice(index, 1);
+                } else {
+                    // Update bookmark name
+                    bookmarks[index].name = newName.trim();
+                }
+                saveBookmarksToCookie();
+                renderBookmarksList();
+                return true;
+            }
+            return false;
+        }
+
+        function deleteBookmark(id) {
+            const index = bookmarks.findIndex(b => b.id === id);
+            if (index !== -1) {
+                bookmarks.splice(index, 1);
+                saveBookmarksToCookie();
+                renderBookmarksList();
+                return true;
+            }
+            return false;
+        }
+
+        function getCurrentPositionForBookmark() {
+            const state = getCurrentScrollState();
+            if (!state) return null;
+
+            return {
+                page: state.page,
+                percent: state.y_percent,
+                defaultName: `Page ${state.page}, ${state.y_percent.toFixed(0)}%`
+            };
+        }
+
+        function jumpToBookmark(bookmark) {
+            if (!pdfDoc) return;
+
+            scrollToPosition(bookmark.page, bookmark.percent);
+            closeBookmarksModal();
+            updateStatus(`Jumped to: ${bookmark.name}`);
+        }
+
+        function renderBookmarksList() {
+            const bookmarksList = document.getElementById('bookmarks-list');
+            if (!bookmarksList) return;
+
+            if (bookmarks.length === 0) {
+                bookmarksList.innerHTML = '<div class="no-bookmarks">No bookmarks yet. Create one using the button below.</div>';
+                return;
+            }
+
+            bookmarksList.innerHTML = '';
+
+            bookmarks.forEach(bookmark => {
+                const bookmarkItem = document.createElement('div');
+                bookmarkItem.className = 'bookmark-item';
+                bookmarkItem.dataset.id = bookmark.id;
+
+                bookmarkItem.innerHTML = `
+                    <div class="bookmark-info">
+                        <div class="bookmark-name">${bookmark.name}</div>
+                        <div class="bookmark-position">Page ${bookmark.page}, ${bookmark.percent.toFixed(0)}%</div>
+                    </div>
+                    <div class="bookmark-actions">
+                        <button class="bookmark-button bookmark-edit" onclick="event.stopPropagation(); editBookmark('${bookmark.id}')">Edit</button>
+                        <button class="bookmark-button bookmark-delete" onclick="event.stopPropagation(); deleteBookmark('${bookmark.id}')">Delete</button>
+                    </div>
+                `;
+
+                bookmarkItem.addEventListener('click', () => jumpToBookmark(bookmark));
+                bookmarksList.appendChild(bookmarkItem);
+            });
+        }
+
+        // --- Search Functions ---
+        async function searchTextInPDF(searchText) {
+            if (!pdfDoc) {
+                showError('No PDF Loaded', 'Please load a PDF first.');
+                return [];
+            }
+
+            searchResults = [];
+            clearSearchHighlights();
+
+            const searchTextLower = searchText.toLowerCase();
+
+            for (let pageNum = 1; pageNum <= pdfDoc.numPages; pageNum++) {
+                try {
+                    const page = await pdfDoc.getPage(pageNum);
+                    const textContent = await page.getTextContent();
+
+                    // Get canvas for this page
+                    const canvas = document.getElementById(`pdf-page-${pageNum}`);
+                    if (!canvas) continue;
+
+                    // Get viewport and scale
+                    const viewport = page.getViewport({ scale: 1 });
+                    const scale = canvas.width / viewport.width;
+
+                    // Search through text items
+                    const textItems = textContent.items;
+                    for (let i = 0; i < textItems.length; i++) {
+                        const textItem = textItems[i];
+                        const text = textItem.str;
+                        const textLower = text.toLowerCase();
+
+                        let searchIndex = 0;
+                        while ((searchIndex = textLower.indexOf(searchTextLower, searchIndex)) !== -1) {
+                            // Calculate position
+                            const totalWidth = textItem.width * scale;
+                            const charWidth = totalWidth / Math.max(1, text.length);
+                            const matchedWidth = searchText.length * charWidth;
+
+                            const baseX = textItem.transform[4] * scale;
+                            const offsetX = searchIndex * charWidth;
+                            const x = baseX + offsetX;
+
+                            const textHeight = (textItem.height || 15) * scale;
+                            const y = (viewport.height - textItem.transform[5]) * scale - textHeight;
+
+                            searchResults.push({
+                                page: pageNum,
+                                x: x,
+                                y: y,
+                                width: matchedWidth,
+                                height: textHeight,
+                                text: text.substring(searchIndex, searchIndex + searchText.length)
+                            });
+
+                            searchIndex += searchText.length;
+                        }
+                    }
+                } catch (error) {
+                    console.error(`Error searching page ${pageNum}:`, error);
+                }
+            }
+
+            return searchResults;
+        }
+
+        function clearSearchHighlights() {
+            searchHighlights.forEach(highlight => {
+                if (highlight.parentNode) {
+                    highlight.parentNode.removeChild(highlight);
+                }
+            });
+            searchHighlights = [];
+        }
+
+        function showSearchResults() {
+            clearSearchHighlights();
+
+            if (searchResults.length === 0) {
+                document.getElementById('find-results-info').classList.add('hidden');
+                document.getElementById('find-prev-btn').classList.add('hidden');
+                document.getElementById('find-next-btn').classList.add('hidden');
+                return;
+            }
+
+            // Update results info
+            const resultsInfo = document.getElementById('find-results-info');
+            const resultsCount = document.getElementById('find-results-count');
+            resultsCount.textContent = searchResults.length;
+            resultsInfo.classList.remove('hidden');
+
+            // Show navigation buttons
+            document.getElementById('find-prev-btn').classList.remove('hidden');
+            document.getElementById('find-next-btn').classList.remove('hidden');
+
+            // Create highlights for all results
+            searchResults.forEach((result, index) => {
+                const canvas = document.getElementById(`pdf-page-${result.page}`);
+                if (!canvas) return;
+
+                const highlight = document.createElement('div');
+                highlight.className = 'search-highlight';
+                highlight.style.left = `${result.x - 2}px`;
+                highlight.style.top = `${result.y}px`;
+                highlight.style.width = `${result.width + 4}px`;
+                highlight.style.height = `${result.height + 3}px`;
+                highlight.style.position = 'absolute';
+                highlight.dataset.index = index;
+
+                // Find the canvas container
+                const canvasParent = canvas.parentNode;
+                if (canvasParent) {
+                    canvasParent.appendChild(highlight);
+                    searchHighlights.push(highlight);
+                }
+            });
+
+            // Highlight current result
+            if (currentSearchIndex >= 0 && currentSearchIndex < searchResults.length) {
+                const currentResult = searchResults[currentSearchIndex];
+                const canvas = document.getElementById(`pdf-page-${currentResult.page}`);
+                if (canvas) {
+                    const currentHighlight = document.createElement('div');
+                    currentHighlight.className = 'current-search-highlight';
+                    currentHighlight.style.left = `${currentResult.x - 4}px`;
+                    currentHighlight.style.top = `${currentResult.y - 2}px`;
+                    currentHighlight.style.width = `${currentResult.width + 8}px`;
+                    currentHighlight.style.height = `${currentResult.height + 7}px`;
+                    currentHighlight.style.position = 'absolute';
+
+                    const canvasParent = canvas.parentNode;
+                    if (canvasParent) {
+                        canvasParent.appendChild(currentHighlight);
+                        searchHighlights.push(currentHighlight);
+                    }
+
+                    // Scroll to the current result
+                    scrollToSearchResult(currentResult);
+                }
+            }
+        }
+
+        function scrollToSearchResult(result) {
+            if (!pdfContainer || !result) return;
+
+            const canvas = document.getElementById(`pdf-page-${result.page}`);
+            if (!canvas) return;
+
+            // Calculate scroll position to center the result
+            const canvasTop = canvas.offsetTop;
+            const targetScrollY = canvasTop + result.y - (pdfContainer.clientHeight / 2) + (result.height / 2);
+
+            pdfContainer.scrollTo({
+                top: targetScrollY,
+                behavior: 'smooth'
+            });
+
+            updateStatus(`Found "${result.text}" (${currentSearchIndex + 1}/${searchResults.length})`);
+        }
+
+        function goToNextSearchResult() {
+            if (searchResults.length === 0) return;
+
+            currentSearchIndex = (currentSearchIndex + 1) % searchResults.length;
+            showSearchResults();
+        }
+
+        function goToPrevSearchResult() {
+            if (searchResults.length === 0) return;
+
+            currentSearchIndex = (currentSearchIndex - 1 + searchResults.length) % searchResults.length;
+            showSearchResults();
+        }
+
+        // --- Utility Functions ---
+        function scrollToPosition(page, percent) {
+            if (!pdfDoc || !pdfContainer) return;
+
+            const canvas = document.getElementById(`pdf-page-${page}`);
+            if (!canvas) return;
+
+            const canvasTop = canvas.offsetTop;
+            const canvasHeight = canvas.offsetHeight;
+            const targetScrollY = canvasTop + (canvasHeight * (percent / 100));
+
+            pdfContainer.scrollTo({
+                top: targetScrollY,
+                behavior: 'smooth'
+            });
+        }
 
         // Debug logging (to console only)
         function logDebug(message) {
@@ -421,7 +1017,7 @@
             sideMenu.classList.toggle('open');
         };
 
-        // Show modal functions
+        // --- Modal Functions ---
         function showPdfUrlModal() {
             document.getElementById('pdf-url-modal').classList.remove('hidden');
             document.getElementById('pdf-url-input').focus();
@@ -431,6 +1027,62 @@
             document.getElementById('pdf-url-modal').classList.add('hidden');
             document.getElementById('pdf-url-input').value = '';
         }
+
+        function showFindModal() {
+            document.getElementById('find-modal').classList.remove('hidden');
+            document.getElementById('find-text-input').focus();
+            document.getElementById('find-text-input').value = '';
+
+            // Reset search state
+            searchResults = [];
+            currentSearchIndex = -1;
+            clearSearchHighlights();
+
+            document.getElementById('find-results-info').classList.add('hidden');
+            document.getElementById('find-prev-btn').classList.add('hidden');
+            document.getElementById('find-next-btn').classList.add('hidden');
+        }
+
+        function closeFindModal() {
+            document.getElementById('find-modal').classList.add('hidden');
+            clearSearchHighlights();
+        }
+
+        function showBookmarksModal() {
+            document.getElementById('bookmarks-modal').classList.remove('hidden');
+            renderBookmarksList();
+        }
+
+        function closeBookmarksModal() {
+            document.getElementById('bookmarks-modal').classList.add('hidden');
+        }
+
+        function showEditBookmarkModal(bookmarkId, currentName) {
+            document.getElementById('edit-bookmark-modal').classList.remove('hidden');
+            document.getElementById('edit-bookmark-input').value = currentName || '';
+            document.getElementById('edit-bookmark-input').focus();
+            document.getElementById('edit-bookmark-input').dataset.bookmarkId = bookmarkId;
+        }
+
+        function closeEditBookmarkModal() {
+            document.getElementById('edit-bookmark-modal').classList.add('hidden');
+            document.getElementById('edit-bookmark-input').value = '';
+            document.getElementById('edit-bookmark-input').dataset.bookmarkId = '';
+        }
+
+        // Global functions for event handlers
+        window.editBookmark = function(bookmarkId) {
+            const bookmark = bookmarks.find(b => b.id === bookmarkId);
+            if (bookmark) {
+                showEditBookmarkModal(bookmarkId, bookmark.name);
+            }
+        };
+
+        window.deleteBookmark = function(bookmarkId) {
+            if (confirm('Are you sure you want to delete this bookmark?')) {
+                deleteBookmark(bookmarkId);
+            }
+        };
 
         function showQrModal() {
             if (!currentSessionId || !currentPdfUrl) {
@@ -549,6 +1201,9 @@
 
                 // Show menu button
                 document.getElementById('menu-button').classList.remove('hidden');
+
+                // Load bookmarks from cookie
+                loadBookmarksFromCookie();
 
                 // Extract URL parameters
                 extractUrlParameters();
@@ -836,6 +1491,16 @@
                 showPdfUrlModal();
             };
 
+            document.getElementById('find-text-btn').onclick = function() {
+                window.toggleMenu();
+                showFindModal();
+            };
+
+            document.getElementById('bookmarks-btn').onclick = function() {
+                window.toggleMenu();
+                showBookmarksModal();
+            };
+
             initializeFirebase();
 
             // Set up event listeners
@@ -864,6 +1529,74 @@
             };
 
             document.getElementById('pdf-url-cancel').onclick = closePdfUrlModal;
+
+            // Find modal buttons
+            document.getElementById('find-ok-btn').onclick = async function() {
+                const searchText = document.getElementById('find-text-input').value.trim();
+                if (!searchText) {
+                    showError('Input Required', 'Please enter text to search for.');
+                    return;
+                }
+
+                logDebug(`Searching for: "${searchText}"`);
+                updateStatus(`Searching for "${searchText}"...`);
+
+                searchResults = await searchTextInPDF(searchText);
+                currentSearchIndex = searchResults.length > 0 ? 0 : -1;
+
+                showSearchResults();
+
+                if (searchResults.length === 0) {
+                    updateStatus(`No matches found for "${searchText}"`);
+                } else {
+                    updateStatus(`Found ${searchResults.length} matches for "${searchText}"`);
+                }
+            };
+
+            document.getElementById('find-cancel-btn').onclick = closeFindModal;
+            document.getElementById('find-prev-btn').onclick = goToPrevSearchResult;
+            document.getElementById('find-next-btn').onclick = goToNextSearchResult;
+
+            // Allow Enter key in Find input
+            document.getElementById('find-text-input').addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') {
+                    document.getElementById('find-ok-btn').click();
+                }
+            });
+
+            // Bookmarks modal buttons
+            document.getElementById('bookmark-add-btn').onclick = function() {
+                const position = getCurrentPositionForBookmark();
+                if (!position) {
+                    showError('Cannot Bookmark', 'Unable to get current position.');
+                    return;
+                }
+
+                const bookmark = addBookmark(position.defaultName, position.page, position.percent);
+                updateStatus(`Bookmark added: ${bookmark.name}`);
+            };
+
+            document.getElementById('bookmarks-close-btn').onclick = closeBookmarksModal;
+
+            // Edit bookmark modal buttons
+            document.getElementById('edit-bookmark-save').onclick = function() {
+                const bookmarkId = document.getElementById('edit-bookmark-input').dataset.bookmarkId;
+                const newName = document.getElementById('edit-bookmark-input').value;
+
+                if (updateBookmark(bookmarkId, newName)) {
+                    closeEditBookmarkModal();
+                    updateStatus('Bookmark updated');
+                }
+            };
+
+            document.getElementById('edit-bookmark-cancel').onclick = closeEditBookmarkModal;
+
+            // Allow Enter key in Edit bookmark input
+            document.getElementById('edit-bookmark-input').addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') {
+                    document.getElementById('edit-bookmark-save').click();
+                }
+            });
 
             // QR modal close button
             document.getElementById('qr-modal-close').onclick = closeQrModal;

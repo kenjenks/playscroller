@@ -346,6 +346,14 @@
         .clear-all-highlights-btn:hover {
             background-color: #dc2626;
         }
+
+        /* Cookie reminder */
+        .cookie-info {
+            font-size: 0.8rem;
+            color: #6b7280;
+            margin-top: 0.5rem;
+            text-align: center;
+        }
     </style>
     <!-- PDF.js library -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.11.338/pdf.min.js"></script>
@@ -440,6 +448,9 @@
                 </div>
             </div>
 
+            <!-- Cookie info -->
+            <p class="cookie-info">Your highlight preferences will be saved for future sessions</p>
+
             <!-- Clear All Highlights Button -->
             <button id="clear-all-highlights-btn" class="clear-all-highlights-btn">
                 Clear All Highlights
@@ -504,6 +515,94 @@
             green: ""
         };
 
+        // Cookie management functions
+        const COOKIE_NAME = 'playscroller_highlights';
+        const COOKIE_EXPIRY_DAYS = 30;
+
+        function setCookie(name, value, days) {
+            let expires = "";
+            if (days) {
+                const date = new Date();
+                date.setTime(date.getTime() + (days * 24 * 60 * 60 * 1000));
+                expires = "; expires=" + date.toUTCString();
+            }
+            document.cookie = name + "=" + encodeURIComponent(value) + expires + "; path=/; SameSite=Lax";
+        }
+
+        function getCookie(name) {
+            const nameEQ = name + "=";
+            const ca = document.cookie.split(';');
+            for (let i = 0; i < ca.length; i++) {
+                let c = ca[i];
+                while (c.charAt(0) === ' ') c = c.substring(1, c.length);
+                if (c.indexOf(nameEQ) === 0) {
+                    return decodeURIComponent(c.substring(nameEQ.length, c.length));
+                }
+            }
+            return null;
+        }
+
+        function deleteCookie(name) {
+            setCookie(name, "", -1);
+        }
+
+        function saveHighlightsToCookie() {
+            try {
+                const highlightsData = JSON.stringify(activeHighlightTexts);
+                setCookie(COOKIE_NAME, highlightsData, COOKIE_EXPIRY_DAYS);
+                console.log('Highlights saved to cookie:', activeHighlightTexts);
+            } catch (error) {
+                console.error('Error saving highlights to cookie:', error);
+            }
+        }
+
+        function loadHighlightsFromCookie() {
+            try {
+                const cookieData = getCookie(COOKIE_NAME);
+                if (cookieData) {
+                    const parsedData = JSON.parse(cookieData);
+
+                    // Validate the parsed data has all required colors
+                    if (parsedData && typeof parsedData === 'object') {
+                        // Ensure all color keys exist
+                        const defaultHighlights = {
+                            yellow: "",
+                            pink: "",
+                            blue: "",
+                            green: ""
+                        };
+
+                        activeHighlightTexts = { ...defaultHighlights, ...parsedData };
+                        console.log('Highlights loaded from cookie:', activeHighlightTexts);
+
+                        // Apply loaded highlights if PDF is already loaded
+                        if (pdfDoc) {
+                            applyHighlightsFromStorage();
+                        }
+
+                        return true;
+                    }
+                }
+            } catch (error) {
+                console.error('Error loading highlights from cookie:', error);
+                // If cookie is corrupted, delete it
+                deleteCookie(COOKIE_NAME);
+            }
+            return false;
+        }
+
+        async function applyHighlightsFromStorage() {
+            console.log('Applying highlights from storage:', activeHighlightTexts);
+
+            // Apply highlights for each color that has text
+            for (const [color, text] of Object.entries(activeHighlightTexts)) {
+                if (text && text.trim() !== "") {
+                    console.log(`Applying saved highlight for ${color}: "${text}"`);
+                    await renderHighlightsForText(text, color);
+                }
+            }
+        }
+
         // Ensure PDF.js worker is set up
         pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.11.338/pdf.worker.min.js';
 
@@ -537,7 +636,7 @@
                 highlightInputsContainer.style.display = 'block';
                 clearAllHighlightsBtn.style.display = 'block';
 
-                // Pre-fill inputs with current highlight texts
+                // Pre-fill inputs with current highlight texts (from memory)
                 document.querySelector('.yellow-highlight-input').value = activeHighlightTexts.yellow;
                 document.querySelector('.pink-highlight-input').value = activeHighlightTexts.pink;
                 document.querySelector('.blue-highlight-input').value = activeHighlightTexts.blue;
@@ -578,6 +677,10 @@
                             }
                             // If text is same as before, do nothing
                         }
+
+                        // Save to cookie after processing all colors
+                        saveHighlightsToCookie();
+
                     } finally {
                         // Always close the modal after callback completes
                         window.closeModal();
@@ -643,6 +746,9 @@
             document.querySelectorAll('.highlight-input').forEach(input => {
                 input.value = "";
             });
+
+            // Delete the cookie
+            deleteCookie(COOKIE_NAME);
 
             // Close modal after clearing
             window.closeModal();
@@ -768,6 +874,9 @@
                 userId = auth.currentUser?.uid || crypto.randomUUID();
                 window.showDebugMessage("Actor User ID: " + userId, 'info');
 
+                // Load highlights from cookie BEFORE extracting session parameters
+                loadHighlightsFromCookie();
+
                 // Extract session_id and pdf_url from QR code URL
                 const urlParams = new URLSearchParams(window.location.search);
                 const sessionIdFromUrl = urlParams.get('session_id');
@@ -857,6 +966,9 @@
 
                 // Initial scroll to top
                 pdfViewerWrapper.scrollTop = 0;
+
+                // Apply saved highlights after PDF is loaded
+                applyHighlightsFromStorage();
 
             } catch (error) {
                 console.error("PDF Loading Error:", error);
