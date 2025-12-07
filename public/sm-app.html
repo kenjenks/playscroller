@@ -665,7 +665,7 @@
             };
 
             // Initialize view state in Realtime Database
-            const viewStateRef = ref(rtb, `sessions/${currentSessionId}/viewState`);
+            const viewStateRef = ref(rtdb, `sessions/${currentSessionId}/viewState`);
             const initialViewState = {
                 page: 1,
                 y_percent: 0,
