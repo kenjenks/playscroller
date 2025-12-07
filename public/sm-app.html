@@ -1287,7 +1287,7 @@
                     currentHighlight.style.left = `${currentResult.x - 4}px`;
                     currentHighlight.style.top = `${currentResult.y - 2}px`;
                     currentHighlight.style.width = `${currentResult.width + 8}px`;
-                    currentHighlight.style.height = `${result.height + 7}px`;
+                    currentHighlight.style.height = `${currentResult.height + 7}px`;
                     currentHighlight.style.position = 'absolute';
 
                     const canvasParent = canvas.parentNode;
@@ -1925,7 +1925,7 @@
 
             document.getElementById('pdf-url-cancel').onclick = closePdfUrlModal;
 
-            // Find modal buttons
+            // Find modal buttons - FIXED EVENT HANDLERS
             document.getElementById('find-ok-btn').onclick = async function() {
                 const searchText = document.getElementById('find-text-input').value.trim();
                 if (!searchText) {
@@ -1949,8 +1949,96 @@
             };
 
             document.getElementById('find-cancel-btn').onclick = closeFindModal;
-            document.getElementById('find-prev-btn').onclick = goToPrevSearchResult;
-            document.getElementById('find-next-btn').onclick = goToNextSearchResult;
+            document.getElementById('find-prev-btn').onclick = function() {
+                goToPrevSearchResult();
+            };
+            document.getElementById('find-next-btn').onclick = function() {
+                goToNextSearchResult();
+            };
+
+            // Allow Enter key in Find input
+            document.getElementById('find-text-input').addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') {
+                    document.getElementById('find-ok-btn').click();
+                }
+            });
+
+            // Keyboard shortcuts for navigation when modal is open
+            document.addEventListener('keydown', (e) => {
+                const findModal = document.getElementById('find-modal');
+                if (!findModal.classList.contains('hidden')) {
+                    if (e.key === 'ArrowRight' || e.key === 'n') {
+                        if (searchResults.length > 0) {
+                            goToNextSearchResult();
+                        }
+                    } else if (e.key === 'ArrowLeft' || e.key === 'p') {
+                        if (searchResults.length > 0) {
+                            goToPrevSearchResult();
+                        }
+                    }
+                }
+            });
+
+            // Bookmarks modal buttons
+            document.getElementById('bookmark-add-btn').onclick = function() {
+                const position = getCurrentPositionForBookmark();
+                if (!position) {
+                    showError('Cannot Bookmark', 'Unable to get current position.');
+                    return;
+                }
+
+                const bookmark = addBookmark(position.defaultName, position.page, position.percent);
+                updateStatus(`Bookmark added: ${bookmark.name}`);
+            };
+
+            document.getElementById('bookmarks-close-btn').onclick = closeBookmarksModal;
+
+            // Edit bookmark modal buttons
+            document.getElementById('edit-bookmark-save').onclick = function() {
+                const bookmarkId = document.getElementById('edit-bookmark-input').dataset.bookmarkId;
+                const newName = document.getElementById('edit-bookmark-input').value;
+
+                if (updateBookmark(bookmarkId, newName)) {
+                    closeEditBookmarkModal();
+                    updateStatus('Bookmark updated');
+                }
+            };
+
+            document.getElementById('edit-bookmark-cancel').onclick = closeEditBookmarkModal;
+
+            // Allow Enter key in Edit bookmark input
+            document.getElementById('edit-bookmark-input').addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') {
+                    document.getElementById('edit-bookmark-save').click();
+                }
+            });
+
+            // QR modal close button
+            document.getElementById('qr-modal-close').onclick = closeQrModal;
+
+            // Error modal close button
+            document.getElementById('error-close').onclick = closeErrorModal;
+
+            // Start with URL button on welcome screen
+            document.getElementById('start-with-url-btn').onclick = function() {
+                document.getElementById('welcome-screen').classList.add('hidden');
+                showPdfUrlModal();
+            };
+
+            // PDF container scroll listener
+            pdfContainer.addEventListener('scroll', window.handleScroll);
+
+            // Close menu when clicking outside
+            document.addEventListener('click', (event) => {
+                const sideMenu = document.getElementById('side-menu');
+                const menuButton = document.getElementById('menu-button');
+
+                if (sideMenu.classList.contains('open') &&
+                    !sideMenu.contains(event.target) &&
+                    !menuButton.contains(event.target)) {
+                    window.toggleMenu();
+                }
+            });
 
             // Allow Enter key in Find input
             document.getElementById('find-text-input').addEventListener('keypress', (e) => {
