@@ -4,7 +4,7 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="fe1af6f4-92e1-4bdd-b2df-11bac74cf631" name="Changes" comment="Version 0.7.6 sm-app.html Debug off by default">
+    <list default="true" id="fe1af6f4-92e1-4bdd-b2df-11bac74cf631" name="Changes" comment="Version 0.8.1 actor-app.html BIG QR CODE">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/public/actor-app.html" beforeDir="false" afterPath="$PROJECT_DIR$/public/actor-app.html" afterDir="false" />
     </list>
@@ -40,6 +40,7 @@
   "keyToString": {
     "ModuleVcsDetector.initialDetectionPerformed": "true",
     "RunOnceActivity.ShowReadmeOnStart": "true",
+    "RunOnceActivity.git.unshallow": "true",
     "git-widget-placeholder": "main",
     "ignore.virus.scanning.warn.message": "true"
   }
@@ -58,22 +59,6 @@
       <option name="number" value="Default" />
       <option name="presentableId" value="Default" />
       <updated>1764860332072</updated>
-    </task>
-    <task id="LOCAL-00002" summary="Version 0.2 Added comments">
-      <option name="closed" value="true" />
-      <created>1764865586150</created>
-      <option name="number" value="00002" />
-      <option name="presentableId" value="LOCAL-00002" />
-      <option name="project" value="LOCAL" />
-      <updated>1764865586150</updated>
-    </task>
-    <task id="LOCAL-00003" summary="Version 0.3 Added more comments">
-      <option name="closed" value="true" />
-      <created>1764869940759</created>
-      <option name="number" value="00003" />
-      <option name="presentableId" value="LOCAL-00003" />
-      <option name="project" value="LOCAL" />
-      <updated>1764869940759</updated>
     </task>
     <task id="LOCAL-00004" summary="Version 0.1 Initial upload of apps">
       <option name="closed" value="true" />
@@ -451,7 +436,23 @@
       <option name="project" value="LOCAL" />
       <updated>1764970776844</updated>
     </task>
-    <option name="localTasksCounter" value="51" />
+    <task id="LOCAL-00051" summary="Version 0.8 actor-app.html BIG QR CODE">
+      <option name="closed" value="true" />
+      <created>1764972087743</created>
+      <option name="number" value="00051" />
+      <option name="presentableId" value="LOCAL-00051" />
+      <option name="project" value="LOCAL" />
+      <updated>1764972087743</updated>
+    </task>
+    <task id="LOCAL-00052" summary="Version 0.8.1 actor-app.html BIG QR CODE">
+      <option name="closed" value="true" />
+      <created>1764972478958</created>
+      <option name="number" value="00052" />
+      <option name="presentableId" value="LOCAL-00052" />
+      <option name="project" value="LOCAL" />
+      <updated>1764972478958</updated>
+    </task>
+    <option name="localTasksCounter" value="53" />
     <servers />
   </component>
   <component name="Vcs.Log.Tabs.Properties">
@@ -466,8 +467,6 @@
     </option>
   </component>
   <component name="VcsManagerConfiguration">
-    <MESSAGE value="Version 0.4 actor-app.html Fix highlighting" />
-    <MESSAGE value="Version 0.4 actor-app.html Test highlighting" />
     <MESSAGE value="Version 0.4 actor-app.html Test highlighting again" />
     <MESSAGE value="Version 0.4 actor-app.html Test highlighting with DeepSeek" />
     <MESSAGE value="Version 0.4 actor-app.html Test AUDIENCE highlighting" />
@@ -491,6 +490,8 @@
     <MESSAGE value="Version 0.7.3 sm-app.html Read PDF, even from Google Drive URL" />
     <MESSAGE value="Version 0.7.5 sm-app.html BIG QR CODE" />
     <MESSAGE value="Version 0.7.6 sm-app.html Debug off by default" />
-    <option name="LAST_COMMIT_MESSAGE" value="Version 0.7.6 sm-app.html Debug off by default" />
+    <MESSAGE value="Version 0.8 actor-app.html BIG QR CODE" />
+    <MESSAGE value="Version 0.8.1 actor-app.html BIG QR CODE" />
+    <option name="LAST_COMMIT_MESSAGE" value="Version 0.8.1 actor-app.html BIG QR CODE" />
   </component>
 </project>

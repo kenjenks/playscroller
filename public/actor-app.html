@@ -5,7 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"> <!-- Prevent user zoom -->
     <title>Actor App - PlayScroller</title>
-    <!-- Tailwind CSS for mobile-first, responsive design -->
+
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         html, body {
@@ -132,8 +132,6 @@
         /* --- Custom highlight styling --- */
         .highlight {
             position: absolute;
-            background-color: rgba(255, 255, 0, 0.4); /* Semi-transparent yellow */
-            /* NO BORDER - removed any border styling */
             border: none !important;
             border-radius: 2px;
             pointer-events: none; /* Allow interaction with elements beneath */
@@ -142,6 +140,43 @@
             /* Ensure no outline or box-shadow */
             outline: none !important;
             box-shadow: none !important;
+        }
+
+        /* Highlight color classes */
+        .highlight-yellow {
+            background-color: rgba(255, 255, 0, 0.4); /* Semi-transparent yellow */
+        }
+        .highlight-pink {
+            background-color: rgba(255, 182, 193, 0.4); /* Semi-transparent pink */
+        }
+        .highlight-blue {
+            background-color: rgba(173, 216, 230, 0.4); /* Semi-transparent blue */
+        }
+        .highlight-green {
+            background-color: rgba(144, 238, 144, 0.4); /* Semi-transparent green */
+        }
+
+        /* Color indicator circles */
+        .color-indicator {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            margin-right: 8px;
+            vertical-align: middle;
+            border: 1px solid rgba(0,0,0,0.1);
+        }
+        .color-indicator-yellow {
+            background-color: rgba(255, 255, 0, 0.8);
+        }
+        .color-indicator-pink {
+            background-color: rgba(255, 182, 193, 0.8);
+        }
+        .color-indicator-blue {
+            background-color: rgba(173, 216, 230, 0.8);
+        }
+        .color-indicator-green {
+            background-color: rgba(144, 238, 144, 0.8);
         }
 
         /* --- Modal for Highlight Input --- */
@@ -272,6 +307,59 @@
         .hidden {
             display: none !important;
         }
+
+        /* Multi-highlight input styles */
+        .highlight-input-group {
+            margin-bottom: 1rem;
+            padding: 0.75rem;
+            border-radius: 0.5rem;
+            background-color: #f9fafb;
+            border: 1px solid #e5e7eb;
+        }
+
+        .highlight-input-header {
+            display: flex;
+            align-items: center;
+            margin-bottom: 0.5rem;
+            font-weight: 500;
+        }
+
+        .highlight-input-label {
+            flex-grow: 1;
+            font-size: 0.95rem;
+        }
+
+        .highlight-input {
+            width: 100%;
+            padding: 0.5rem;
+            border: 1px solid #d1d5db;
+            border-radius: 0.375rem;
+            font-size: 0.95rem;
+        }
+
+        .highlight-input:focus {
+            outline: none;
+            border-color: #6366f1;
+            box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+        }
+
+        .clear-all-highlights-btn {
+            width: 100%;
+            margin-top: 1rem;
+            padding: 0.75rem;
+            background-color: #ef4444;
+            color: white;
+            border: none;
+            border-radius: 0.5rem;
+            font-size: 1rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+
+        .clear-all-highlights-btn:hover {
+            background-color: #dc2626;
+        }
     </style>
     <!-- PDF.js library -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.11.338/pdf.min.js"></script>
@@ -311,15 +399,69 @@
 
     <!-- Generic Modal for Highlight Input / Errors -->
     <div id="modal" class="fixed inset-0 bg-gray-600 bg-opacity-50 hidden items-center justify-center z-50">
-        <div class="bg-white p-6 rounded-lg shadow-xl max-w-sm w-full">
-            <h3 id="modal-title" class="text-xl font-bold mb-4 text-gray-800"></h3>
-            <p id="modal-message" class="text-gray-700 mb-6"></p>
-            <!-- Highlight Input specific elements -->
-            <input type="text" id="highlight-text-input" placeholder="Enter text to highlight"
-                   class="mt-1 block w-full rounded-lg border-gray-300 shadow-sm p-3 border focus:border-indigo-500 focus:ring-indigo-500 hidden">
+        <div class="bg-white p-6 rounded-lg shadow-xl max-w-md w-full">
+            <h3 id="modal-title" class="text-xl font-bold mb-4 text-gray-800">Multi-Color Text Highlight</h3>
+            <p id="modal-message" class="text-gray-700 mb-6">Enter text to highlight in different colors. Clear a field to remove highlights of that color.</p>
+
+            <!-- Multi-color highlight inputs -->
+            <div id="highlight-inputs-container">
+                <!-- Yellow highlight input -->
+                <div class="highlight-input-group" data-color="yellow">
+                    <div class="highlight-input-header">
+                        <span class="color-indicator color-indicator-yellow"></span>
+                        <span class="highlight-input-label">Yellow Highlight</span>
+                    </div>
+                    <input type="text"
+                           class="highlight-input yellow-highlight-input"
+                           placeholder="Enter text for yellow highlight"
+                           data-color="yellow">
+                </div>
+
+                <!-- Pink highlight input -->
+                <div class="highlight-input-group" data-color="pink">
+                    <div class="highlight-input-header">
+                        <span class="color-indicator color-indicator-pink"></span>
+                        <span class="highlight-input-label">Pink Highlight</span>
+                    </div>
+                    <input type="text"
+                           class="highlight-input pink-highlight-input"
+                           placeholder="Enter text for pink highlight"
+                           data-color="pink">
+                </div>
+
+                <!-- Blue highlight input -->
+                <div class="highlight-input-group" data-color="blue">
+                    <div class="highlight-input-header">
+                        <span class="color-indicator color-indicator-blue"></span>
+                        <span class="highlight-input-label">Blue Highlight</span>
+                    </div>
+                    <input type="text"
+                           class="highlight-input blue-highlight-input"
+                           placeholder="Enter text for blue highlight"
+                           data-color="blue">
+                </div>
+
+                <!-- Green highlight input -->
+                <div class="highlight-input-group" data-color="green">
+                    <div class="highlight-input-header">
+                        <span class="color-indicator color-indicator-green"></span>
+                        <span class="highlight-input-label">Green Highlight</span>
+                    </div>
+                    <input type="text"
+                           class="highlight-input green-highlight-input"
+                           placeholder="Enter text for green highlight"
+                           data-color="green">
+                </div>
+            </div>
+
+            <!-- Clear All Highlights Button -->
+            <button id="clear-all-highlights-btn" class="clear-all-highlights-btn">
+                Clear All Highlights
+            </button>
+
             <div id="modal-buttons" class="flex justify-end space-x-4 mt-6">
-                <button id="modal-cancel-btn" class="py-2 px-4 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300 hidden">Cancel</button>
-                <button id="modal-ok-btn" class="py-2 px-4 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700">Highlight</button>
+                <button id="modal-cancel-btn" class="py-2 px-4 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300">Cancel</button>
+                <button id="modal-ok-btn" class="py-2 px-4 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700">Apply Highlights</button>
             </div>
         </div>
     </div>
@@ -384,7 +526,14 @@
         let pdfViewerWrapper; // Our main scrollable div
         let currentSessionId = null;
         let currentPdfUrl = null;
-        let activeHighlightText = ""; // Stores the text currently being highlighted
+
+        // Store active highlight texts for each color
+        let activeHighlightTexts = {
+            yellow: "",
+            pink: "",
+            blue: "",
+            green: ""
+        };
 
         // Ensure PDF.js worker is set up
         pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.11.338/pdf.worker.min.js';
@@ -433,7 +582,8 @@
         const modal = document.getElementById('modal');
         const modalTitle = document.getElementById('modal-title');
         const modalMessage = document.getElementById('modal-message');
-        const highlightTextInput = document.getElementById('highlight-text-input');
+        const highlightInputsContainer = document.getElementById('highlight-inputs-container');
+        const clearAllHighlightsBtn = document.getElementById('clear-all-highlights-btn');
         const modalOkBtn = document.getElementById('modal-ok-btn');
         const modalCancelBtn = document.getElementById('modal-cancel-btn');
 
@@ -443,29 +593,49 @@
             modalTitle.className = isError ? 'text-xl font-bold mb-4 text-red-600' : 'text-xl font-bold mb-4 text-green-600';
 
             if (showInput) {
-                highlightTextInput.value = activeHighlightText; // Pre-fill with current highlight
-                highlightTextInput.classList.remove('hidden');
-                modalCancelBtn.classList.remove('hidden');
-                modalOkBtn.textContent = 'Highlight'; // Change text for highlight action
+                highlightInputsContainer.style.display = 'block';
+                clearAllHighlightsBtn.style.display = 'block';
 
-                // Store the callbacks for later use
-                let okCallback = onOk;
-                let cancelCallback = onCancel;
+                // Pre-fill inputs with current highlight texts
+                document.querySelector('.yellow-highlight-input').value = activeHighlightTexts.yellow;
+                document.querySelector('.pink-highlight-input').value = activeHighlightTexts.pink;
+                document.querySelector('.blue-highlight-input').value = activeHighlightTexts.blue;
+                document.querySelector('.green-highlight-input').value = activeHighlightTexts.green;
+
+                modalCancelBtn.classList.remove('hidden');
+                modalOkBtn.textContent = 'Apply Highlights';
 
                 // Set up button handlers
                 modalOkBtn.onclick = async () => {
-                    // Get the input value
-                    const inputValue = highlightTextInput.value;
+                    // Get all input values
+                    const inputs = {
+                        yellow: document.querySelector('.yellow-highlight-input').value,
+                        pink: document.querySelector('.pink-highlight-input').value,
+                        blue: document.querySelector('.blue-highlight-input').value,
+                        green: document.querySelector('.green-highlight-input').value
+                    };
 
                     // Disable the OK button while processing
                     modalOkBtn.disabled = true;
-                    modalOkBtn.textContent = 'Searching...';
+                    modalOkBtn.textContent = 'Processing...';
                     modalOkBtn.classList.add('opacity-50', 'cursor-not-allowed');
 
                     try {
-                        // Call the callback and wait for it to complete
-                        if (okCallback) {
-                            await okCallback(inputValue); // WAIT for callback to complete
+                        // Process each color separately
+                        for (const [color, text] of Object.entries(inputs)) {
+                            const cleanedText = cleanSearchText(text);
+
+                            if (cleanedText === "" && activeHighlightTexts[color] !== "") {
+                                // Text changed from non-blank to blank - remove this color's highlights
+                                window.showDebugMessage(`Clearing ${color} highlights (blank input)`, 'info');
+                                removeHighlightsByColor(color);
+                                activeHighlightTexts[color] = "";
+                            } else if (cleanedText !== "" && cleanedText !== activeHighlightTexts[color]) {
+                                // Text changed to non-blank and is different - update highlights
+                                activeHighlightTexts[color] = cleanedText;
+                                await renderHighlightsForText(cleanedText, color);
+                            }
+                            // If text is same as before, do nothing
                         }
                     } finally {
                         // Always close the modal after callback completes
@@ -474,21 +644,21 @@
                 };
 
                 modalCancelBtn.onclick = () => {
-                    if (cancelCallback) {
-                        cancelCallback();
+                    if (onCancel) {
+                        onCancel();
                     }
                     window.closeModal();
                 };
 
-                // Focus the input field
+                // Focus the first input field
                 setTimeout(() => {
-                    highlightTextInput.focus();
-                    highlightTextInput.select();
+                    document.querySelector('.yellow-highlight-input').focus();
                 }, 100);
             } else {
-                highlightTextInput.classList.add('hidden');
-                modalCancelBtn.classList.add('hidden');
-                modalOkBtn.textContent = 'OK'; // Default OK text
+                highlightInputsContainer.style.display = 'none';
+                clearAllHighlightsBtn.style.display = 'none';
+                modalCancelBtn.classList.remove('hidden');
+                modalOkBtn.textContent = 'OK';
 
                 // For non-input modals, use simple close
                 modalOkBtn.onclick = window.closeModal;
@@ -500,13 +670,42 @@
 
         window.closeModal = () => {
             modal.classList.add('hidden');
-            // Clear input field
-            highlightTextInput.value = '';
             // Reset OK button state
             modalOkBtn.disabled = false;
-            modalOkBtn.textContent = 'Highlight';
+            modalOkBtn.textContent = 'Apply Highlights';
             modalOkBtn.classList.remove('opacity-50', 'cursor-not-allowed');
         };
+
+        // Function to remove highlights by color
+        function removeHighlightsByColor(color) {
+            const highlights = document.querySelectorAll(`.highlight-${color}`);
+            window.showDebugMessage(`Removing ${highlights.length} ${color} highlights`, 'info');
+            highlights.forEach(el => el.remove());
+        }
+
+        // Function to clear all highlights
+        function clearAllHighlights() {
+            window.showDebugMessage("Clearing ALL highlights", 'info');
+
+            // Remove all highlights
+            document.querySelectorAll('.highlight').forEach(el => el.remove());
+
+            // Clear all active highlight texts
+            activeHighlightTexts = {
+                yellow: "",
+                pink: "",
+                blue: "",
+                green: ""
+            };
+
+            // Clear all input fields
+            document.querySelectorAll('.highlight-input').forEach(input => {
+                input.value = "";
+            });
+
+            // Close modal after clearing
+            window.closeModal();
+        }
 
         // --- QR Code Modal Functions ---
         function showQrModal() {
@@ -579,38 +778,18 @@
 
         // Helper function to clean search text
         function cleanSearchText(text) {
-            // Remove spaces ONLY from the beginning and end
+            // Remove spaces from the beginning and end
             let cleaned = text.trim();
             window.showDebugMessage(`Cleaned search text: "${text}" -> "${cleaned}"`, 'info');
             return cleaned;
         }
 
-        // UPDATED: handleHighlightClick function - MODAL CLOSES AFTER HIGHLIGHTING COMPLETES
         window.handleHighlightClick = () => {
             window.toggleMenu(); // Close the side menu
-            window.showModal('Highlight Text 0.8.1',
-                'Enter text to highlight across the script:\n\nNote: Leading/trailing spaces will be ignored.',
+            window.showModal('Multi-Color Text Highlight',
+                'Enter text to highlight in different colors. Clear a field to remove highlights of that color.',
                 false, true,
-                async (text) => { // Make callback async
-                    window.showDebugMessage(`User entered text: "${text}"`, 'info');
-
-                    // Clear existing highlights first (ALWAYS do this)
-                    document.querySelectorAll('.highlight').forEach(el => el.remove());
-
-                    if (!text || text.trim() === "") {
-                        activeHighlightText = "";
-                        window.showDebugMessage("Cleared all highlights (blank input)", 'info');
-                        // NO MODAL - just clear highlights silently
-                        return; // Return immediately for blank input
-                    } else {
-                        // Clean the search text (trim only)
-                        activeHighlightText = cleanSearchText(text);
-                        window.showDebugMessage(`Searching for: "${activeHighlightText}" (case-insensitive)`, 'info');
-
-                        // Call the highlight function and WAIT for it to complete
-                        await renderHighlightsForText(activeHighlightText);
-                    }
-                },
+                null, // onOk handled in showModal
                 () => {
                     window.showDebugMessage("Highlight cancelled", 'info');
                 }
@@ -747,22 +926,22 @@
         }
 
         // --- Highlighting Logic ---
-        async function renderHighlightsForText(searchText) {
-            window.showDebugMessage(`STARTING renderHighlightsForText("${searchText}")`, 'info');
+        async function renderHighlightsForText(searchText, color) {
+            window.showDebugMessage(`STARTING renderHighlightsForText("${searchText}", "${color}")`, 'info');
 
-            // Clear all existing highlights before re-rendering
-            const existingHighlights = document.querySelectorAll('.highlight').length;
-            window.showDebugMessage(`Clearing ${existingHighlights} existing highlights`, 'info');
-            document.querySelectorAll('.highlight').forEach(el => el.remove());
+            // Clear existing highlights of this color only
+            const existingHighlights = document.querySelectorAll(`.highlight-${color}`).length;
+            window.showDebugMessage(`Clearing ${existingHighlights} existing ${color} highlights`, 'info');
+            document.querySelectorAll(`.highlight-${color}`).forEach(el => el.remove());
 
             // Show loading indicator
             const loadingIndicator = document.createElement('div');
             loadingIndicator.className = 'highlight-loading';
-            loadingIndicator.textContent = `Searching for "${searchText}"...`;
+            loadingIndicator.textContent = `Searching for "${searchText}" (${color})...`;
             loadingIndicator.style.display = 'block';
             document.body.appendChild(loadingIndicator);
 
-            window.showDebugMessage(`Searching for "${searchText}" in PDF (case-insensitive)...`, 'info');
+            window.showDebugMessage(`Searching for "${searchText}" in PDF (case-insensitive, color: ${color})...`, 'info');
 
             if (!pdfDoc) {
                 window.showDebugMessage("ERROR: No PDF document loaded", 'error');
@@ -781,7 +960,7 @@
             // Search through all pages
             for (let pageNum = 1; pageNum <= pdfDoc.numPages; pageNum++) {
                 try {
-                    window.showDebugMessage(`Processing page ${pageNum}...`, 'info');
+                    window.showDebugMessage(`Processing page ${pageNum} for ${color}...`, 'info');
                     const page = await pdfDoc.getPage(pageNum);
                     const textContent = await page.getTextContent();
 
@@ -869,7 +1048,7 @@
                             if (itemIndex === -1) break;
 
                             const item = textPositions[itemIndex];
-                            const startIndex = useWithSpaces ? item.startIndexWithSpaces : item.startIndexWithoutSpaces;
+                            const startIndex = useWithSpaces ? item.startIndexWithSpaces : item.endIndexWithoutSpaces;
 
                             matchingItems.push({
                                 item: item,
@@ -886,7 +1065,7 @@
                     }
 
                     function createHighlightsForMatch(matchingItems, textPositions, viewport, scale,
-                                                      highlightOverlay, pageNum, searchText) {
+                                                      highlightOverlay, pageNum, searchText, color) {
                         for (const match of matchingItems) {
                             const item = match.item;
                             const matchStartInItem = match.matchStartInItem;
@@ -908,7 +1087,7 @@
 
                             // Create highlight element
                             const highlightSpan = document.createElement('div');
-                            highlightSpan.className = 'highlight';
+                            highlightSpan.className = `highlight highlight-${color}`;
 
                             // Adjust position slightly for better visual alignment
                             const adjustedX = x - 2;
@@ -926,7 +1105,7 @@
 
                             // Add a title for debugging
                             const matchedText = item.text.substring(matchStartInItem, matchEndInItem);
-                            highlightSpan.setAttribute('title', `"${matchedText}" (Page ${pageNum}, part of "${searchText}")`);
+                            highlightSpan.setAttribute('title', `"${matchedText}" (Page ${pageNum}, color: ${color}, part of "${searchText}")`);
 
                             highlightOverlay.appendChild(highlightSpan);
                         }
@@ -940,14 +1119,14 @@
                         const matchStart = searchIndex;
                         const matchEnd = searchIndex + searchTextLower.length;
 
-                        window.showDebugMessage(`Found match with spaces at indices ${matchStart}-${matchEnd} on page ${pageNum}`, 'info');
+                        window.showDebugMessage(`Found ${color} match with spaces at indices ${matchStart}-${matchEnd} on page ${pageNum}`, 'info');
 
                         // Find which text items contain this match (using with-spaces indices)
                         const matchingItems = findMatchingItems(matchStart, matchEnd, textPositions, true);
 
                         if (matchingItems.length > 0) {
                             createHighlightsForMatch(matchingItems, textPositions, viewport, scale,
-                                                     highlightOverlay, pageNum, searchText);
+                                                     highlightOverlay, pageNum, searchText, color);
                             pageHighlights += matchingItems.length;
                             pageMatches++;
                             totalHighlights += matchingItems.length;
@@ -968,14 +1147,14 @@
                             const matchStart = searchIndex;
                             const matchEnd = searchIndex + searchTextLowerNoSpaces.length;
 
-                            window.showDebugMessage(`Found match without spaces at indices ${matchStart}-${matchEnd} on page ${pageNum}`, 'info');
+                            window.showDebugMessage(`Found ${color} match without spaces at indices ${matchStart}-${matchEnd} on page ${pageNum}`, 'info');
 
                             // Find which text items contain this match (using without-spaces indices)
                             const matchingItems = findMatchingItems(matchStart, matchEnd, textPositions, false);
 
                             if (matchingItems.length > 0) {
                                 createHighlightsForMatch(matchingItems, textPositions, viewport, scale,
-                                                         highlightOverlay, pageNum, searchText);
+                                                         highlightOverlay, pageNum, searchText, color);
                                 pageHighlights += matchingItems.length;
                                 pageMatches++;
                                 totalHighlights += matchingItems.length;
@@ -988,11 +1167,11 @@
                     }
 
                     if (pageMatches > 0) {
-                        window.showDebugMessage(`Found ${pageMatches} match(es) on page ${pageNum}`, 'info');
+                        window.showDebugMessage(`Found ${pageMatches} ${color} match(es) on page ${pageNum}`, 'info');
                     }
 
                 } catch (error) {
-                    window.showDebugMessage(`Error processing page ${pageNum}: ${error.message}`, 'error');
+                    window.showDebugMessage(`Error processing page ${pageNum} for ${color}: ${error.message}`, 'error');
                 }
             }
 
@@ -1003,12 +1182,12 @@
 
             // NO MODAL WINDOWS - just debug messages
             if (totalMatches > 0) {
-                window.showDebugMessage(`SUCCESS: Highlighted "${searchText}" ${totalMatches} time(s) in the PDF`, 'info');
+                window.showDebugMessage(`SUCCESS: Highlighted "${searchText}" ${totalMatches} time(s) in the PDF with ${color} color`, 'info');
             } else {
-                window.showDebugMessage(`No instances of "${searchText}" found (case-insensitive)`, 'info');
+                window.showDebugMessage(`No instances of "${searchText}" found for ${color} highlight (case-insensitive)`, 'info');
             }
 
-            window.showDebugMessage(`FINISHED renderHighlightsForText("${searchText}")`, 'info');
+            window.showDebugMessage(`FINISHED renderHighlightsForText("${searchText}", "${color}")`, 'info');
         }
 
         // --- Real-Time Synchronization (Actor Listener) ---
@@ -1062,6 +1241,9 @@
 
             // Set up Show QR button click handler
             document.getElementById('show-qr-btn').onclick = window.handleShowQrClick;
+
+            // Set up Clear All Highlights button
+            clearAllHighlightsBtn.onclick = clearAllHighlights;
 
             initializeFirebase();
 
