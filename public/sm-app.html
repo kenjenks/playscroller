@@ -210,21 +210,6 @@
             background-color: rgba(0, 0, 0, 0.9);
         }
 
-        /* Debug info */
-        #debug-info {
-            position: fixed;
-            bottom: 10px;
-            left: 10px;
-            background: rgba(0,0,0,0.7);
-            color: white;
-            padding: 10px;
-            border-radius: 5px;
-            font-family: monospace;
-            font-size: 12px;
-            max-width: 300px;
-            z-index: 1001;
-        }
-
         /* Hidden class */
         .hidden {
             display: none !important;
@@ -299,7 +284,6 @@
             <li><button id="set-pdf-url-btn">Set PDF URL...</button></li>
             <li><button id="show-qr-btn" class="hidden">Show Actor QR Code</button></li>
             <li><button id="reset-btn">Reset Session</button></li>
-            <li><button id="debug-btn">Debug Info</button></li>
         </ul>
     </div>
 
@@ -346,12 +330,6 @@
         </div>
     </div>
 
-    <!-- Debug Info Panel -->
-    <div id="debug-info" class="hidden">
-        <div id="debug-content"></div>
-        <button onclick="toggleDebug()" class="mt-2 text-xs bg-blue-500 text-white px-2 py-1 rounded">Toggle Debug</button>
-    </div>
-
     <script type="module">
         // Import the functions you need from the SDKs you need
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
@@ -377,29 +355,15 @@
         let pdfContainer;
         let currentSessionId = null;
         let currentPdfUrl = null;
-        let debugMessages = [];
         let pdfUrlFromParam = null;
 
         // Ensure PDF.js worker is set up
         pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.11.338/pdf.worker.min.js';
 
-        // Debug logging
+        // Debug logging (to console only)
         function logDebug(message) {
             const timestamp = new Date().toLocaleTimeString();
-            debugMessages.push(`[${timestamp}] ${message}`);
-            if (debugMessages.length > 20) debugMessages.shift();
-
-            const debugContent = document.getElementById('debug-content');
-            if (debugContent) {
-                debugContent.innerHTML = debugMessages.join('<br>');
-                debugContent.scrollTop = debugContent.scrollHeight;
-            }
-            console.log(message);
-        }
-
-        function toggleDebug() {
-            const debugPanel = document.getElementById('debug-info');
-            debugPanel.classList.toggle('hidden');
+            console.log(`[${timestamp}] ${message}`);
         }
 
         // Update status indicator
@@ -701,7 +665,7 @@
             };
 
             // Initialize view state in Realtime Database
-            const viewStateRef = ref(rtdb, `sessions/${currentSessionId}/viewState`);
+            const viewStateRef = ref(rtb, `sessions/${currentSessionId}/viewState`);
             const initialViewState = {
                 page: 1,
                 y_percent: 0,
@@ -865,9 +829,6 @@
         document.addEventListener('DOMContentLoaded', () => {
             pdfContainer = document.getElementById('pdf-container');
 
-            // Set up debug toggle
-            window.toggleDebug = toggleDebug;
-
             // Fix for "Set PDF URL..." button not working
             // Add click handler directly to the button
             document.getElementById('set-pdf-url-btn').onclick = function() {
@@ -888,11 +849,6 @@
 
             document.getElementById('reset-btn').onclick = function() {
                 resetSession();
-            };
-
-            document.getElementById('debug-btn').onclick = function() {
-                window.toggleMenu();
-                toggleDebug();
             };
 
             // PDF URL modal buttons
@@ -942,11 +898,6 @@
                     document.getElementById('pdf-url-ok').click();
                 }
             });
-
-            // Force debug panel to be visible for testing
-            // setTimeout(() => {
-            //     document.getElementById('debug-info').classList.remove('hidden');
-            // }, 1000);
         });
 
     </script>

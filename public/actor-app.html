@@ -184,20 +184,6 @@
             background-color: rgba(0, 0, 0, 0.7);
         }
 
-        /* Debug panel styles */
-        #debug-panel {
-            font-family: monospace;
-        }
-
-        #debug-content {
-            font-family: 'Courier New', monospace;
-            white-space: pre-wrap;
-        }
-
-        #debug-button {
-            z-index: 1001; /* Above everything */
-        }
-
         /* Loading indicator for highlight search */
         .highlight-loading {
             position: fixed;
@@ -485,23 +471,6 @@
         </div>
     </div>
 
-    <!-- Debug Panel for Tablet Testing -->
-    <div id="debug-panel" class="fixed bottom-0 left-0 right-0 bg-black bg-opacity-80 text-white p-3 z-50 hidden">
-        <div class="flex justify-between items-center">
-            <h3 class="font-bold">Debug Info</h3>
-            <button onclick="window.toggleDebugPanel()" class="bg-red-500 px-3 py-1 rounded">×</button>
-        </div>
-        <div id="debug-content" class="mt-2 text-sm overflow-auto max-h-32">
-            <!-- Debug messages will appear here -->
-        </div>
-    </div>
-
-    <!-- Quick Debug Button -->
-    <button id="debug-button" onclick="window.toggleDebugPanel()"
-            class="fixed bottom-4 right-4 bg-blue-500 text-white p-3 rounded-full shadow-lg z-50">
-        Debug
-    </button>
-
     <script type="module">
         // Import the functions you need from the SDKs you need
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
@@ -538,43 +507,15 @@
         // Ensure PDF.js worker is set up
         pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.11.338/pdf.worker.min.js';
 
-        // --- Debug Functions for Tablet Testing ---
-        let debugMessages = [];
-
+        // Simple logging function (kept for internal use but no debug UI)
         window.showDebugMessage = (message, type = 'info') => {
             const timestamp = new Date().toLocaleTimeString();
             const formattedMessage = `[${timestamp}] ${message}`;
-            debugMessages.push({ message: formattedMessage, type });
-
-            // Keep only last 10 messages
-            if (debugMessages.length > 10) {
-                debugMessages.shift();
-            }
-
-            // Update debug panel if visible
-            const debugContent = document.getElementById('debug-content');
-            if (debugContent) {
-                debugContent.innerHTML = debugMessages
-                    .map(msg => `<div class="${msg.type === 'error' ? 'text-red-300' : 'text-green-300'}">${msg.message}</div>`)
-                    .join('');
-                debugContent.scrollTop = debugContent.scrollHeight;
-            }
-        };
-
-        window.toggleDebugPanel = () => {
-            const panel = document.getElementById('debug-panel');
-            const button = document.getElementById('debug-button');
-
-            if (panel.classList.contains('hidden')) {
-                panel.classList.remove('hidden');
-                button.textContent = 'Hide Debug';
-                button.classList.remove('bg-blue-500');
-                button.classList.add('bg-red-500');
+            // Just log to console instead of showing in UI
+            if (type === 'error') {
+                console.error(formattedMessage);
             } else {
-                panel.classList.add('hidden');
-                button.textContent = 'Debug';
-                button.classList.remove('bg-red-500');
-                button.classList.add('bg-blue-500');
+                console.log(formattedMessage);
             }
         };
 
