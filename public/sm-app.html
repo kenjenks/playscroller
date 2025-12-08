@@ -865,7 +865,6 @@
 
         // --- Global Firebase Variables ---
         const firebaseConfig = {
-
           apiKey: "AIzaSyBG9pzEdllxWnZu0zYQMXqEFzJWNAVv6Lw",
           authDomain: "playscroller.firebaseapp.com",
           projectId: "playscroller",
@@ -876,6 +875,16 @@
 
         // Initialize Firebase
         const app = initializeApp(firebaseConfig);
+
+        // --- PDF Loading Constants ---
+        const PDF_LOADING_STRATEGIES = {
+            DIRECT: 'direct',
+            GOOGLE_DRIVE: 'google_drive',
+            CORS_PROXY: 'cors_proxy',
+            BLOB: 'blob'
+        };
+
+        const CORS_PROXY_URL = 'https://corsproxy.io/?';
 
         let rtdb, auth, userId;
         let pdfDoc = null;
@@ -896,6 +905,168 @@
 
         // Ensure PDF.js worker is set up
         pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.11.338/pdf.worker.min.js';
+
+        // --- Enhanced Google Drive URL Converter ---
+        function convertGoogleDriveLink(url) {
+            if (!url) return url;
+
+            console.log('Converting Google Drive URL:', url);
+
+            // Decode URL first
+            try {
+                url = decodeURIComponent(url);
+            } catch (e) {
+                // Continue with original
+            }
+
+            // Pattern 1: Standard Google Drive view link
+            let match = url.match(/drive\.google\.com\/file\/d\/([a-zA-Z0-9_-]+)/);
+            if (match) {
+                const fileId = match[1];
+                return `https://drive.google.com/uc?export=download&id=${fileId}`;
+            }
+
+            // Pattern 2: Google Drive open link
+            match = url.match(/drive\.google\.com\/open\?id=([a-zA-Z0-9_-]+)/);
+            if (match) {
+                const fileId = match[1];
+                return `https://drive.google.com/uc?export=download&id=${fileId}`;
+            }
+
+            // Pattern 3: Docs.google.com
+            match = url.match(/docs\.google\.com\/(?:presentation|document|spreadsheets)\/d\/([a-zA-Z0-9_-]+)/);
+            if (match) {
+                const fileId = match[1];
+                return `https://drive.google.com/uc?export=download&id=${fileId}`;
+            }
+
+            // Pattern 4: Already a direct download link
+            if (url.includes('uc?export=download')) {
+                return url;
+            }
+
+            // Pattern 5: Try extracting file ID from any Google URL with /d/ pattern
+            match = url.match(/\/d\/([a-zA-Z0-9_-]+)/);
+            if (match && url.includes('google')) {
+                const fileId = match[1];
+                return `https://drive.google.com/uc?export=download&id=${fileId}`;
+            }
+
+            return url;
+        }
+
+        // --- URL Analysis Function ---
+        function analyzePdfUrl(url) {
+            const analysis = {
+                isGoogleDrive: false,
+                likelyHasCors: false,
+                suggestions: []
+            };
+
+            // Check for Google Drive
+            if (url.includes('drive.google.com') || url.includes('docs.google.com')) {
+                analysis.isGoogleDrive = true;
+                analysis.suggestions.push('Use Google Drive direct download link');
+            }
+
+            // Check for common hosting services that support CORS
+            const corsFriendlyHosts = [
+                'github.com', 'gitlab.com', 'raw.githubusercontent.com',
+                'dropbox.com', 'onedrive.live.com', 'box.com',
+                'firebasestorage.googleapis.com', 'storage.googleapis.com'
+            ];
+
+            for (const host of corsFriendlyHosts) {
+                if (url.includes(host)) {
+                    analysis.likelyHasCors = true;
+                    break;
+                }
+            }
+
+            return analysis;
+        }
+
+        // --- Multi-Strategy PDF Loader ---
+        async function loadPDFWithAllStrategies(originalUrl) {
+            const strategies = [
+                {
+                    name: PDF_LOADING_STRATEGIES.GOOGLE_DRIVE,
+                    try: async (url) => {
+                        const driveUrl = convertGoogleDriveLink(url);
+                        if (driveUrl !== url) {
+                            logDebug('Trying Google Drive conversion...');
+                            return await pdfjsLib.getDocument(driveUrl).promise;
+                        }
+                        throw new Error('Not a Google Drive URL');
+                    }
+                },
+                {
+                    name: PDF_LOADING_STRATEGIES.DIRECT,
+                    try: async (url) => {
+                        logDebug('Trying direct load...');
+                        return await pdfjsLib.getDocument({
+                            url: url,
+                            withCredentials: false,
+                            httpHeaders: {
+                                'Accept': 'application/pdf, */*'
+                            }
+                        }).promise;
+                    }
+                },
+                {
+                    name: PDF_LOADING_STRATEGIES.CORS_PROXY,
+                    try: async (url) => {
+                        logDebug('Trying CORS proxy...');
+                        const proxyUrl = CORS_PROXY_URL + encodeURIComponent(url);
+                        return await pdfjsLib.getDocument(proxyUrl).promise;
+                    }
+                },
+                {
+                    name: PDF_LOADING_STRATEGIES.BLOB,
+                    try: async (url) => {
+                        logDebug('Trying fetch + blob method...');
+                        const response = await fetch(url, {
+                            mode: 'cors',
+                            credentials: 'omit',
+                            headers: {
+                                'Accept': 'application/pdf, */*'
+                            }
+                        });
+
+                        if (!response.ok) {
+                            throw new Error(`HTTP ${response.status}`);
+                        }
+
+                        const blob = await response.blob();
+                        const blobUrl = URL.createObjectURL(blob);
+
+                        const pdfDoc = await pdfjsLib.getDocument(blobUrl).promise;
+
+                        // Clean up blob URL
+                        setTimeout(() => URL.revokeObjectURL(blobUrl), 1000);
+
+                        return pdfDoc;
+                    }
+                }
+            ];
+
+            let lastError;
+
+            for (const strategy of strategies) {
+                try {
+                    logDebug(`Attempting ${strategy.name} strategy...`);
+                    const pdfDoc = await strategy.try(originalUrl);
+                    logDebug(`✓ ${strategy.name} strategy succeeded!`);
+                    return { pdfDoc, strategy: strategy.name };
+                } catch (error) {
+                    logDebug(`✗ ${strategy.name} strategy failed:`, error.message);
+                    lastError = error;
+                    continue;
+                }
+            }
+
+            throw new Error(`All PDF loading strategies failed. Last error: ${lastError?.message}`);
+        }
 
         // --- Cookie Management Functions ---
         function setCookie(name, value, days) {
@@ -1669,26 +1840,291 @@
             return 'SESS-' + Date.now().toString(36) + Math.random().toString(36).substring(2, 6).toUpperCase();
         }
 
-        // Convert Google Drive view link to direct download link
-        function convertGoogleDriveLink(url) {
-            if (!url) return url;
+        // --- UPDATED: Enhanced PDF Loading Function ---
+        async function loadAndRenderPDF(pdfUrl) {
+            logDebug(`Loading PDF from: ${pdfUrl}`);
+            updateStatus('Analyzing PDF URL...');
 
-            logDebug(`Converting Google Drive link: ${url}`);
+            // Show PDF container
+            document.getElementById('pdf-container').classList.remove('hidden');
+            document.getElementById('pdf-container').innerHTML = '<p id="loading-message" class="text-center py-12 text-gray-500">Loading PDF, please wait...</p>';
 
-            // Pattern for Google Drive view links
-            const viewPattern = /drive\.google\.com\/file\/d\/([a-zA-Z0-9_-]+)/;
-            const match = url.match(viewPattern);
+            try {
+                // Analyze URL for better error messages
+                const urlAnalysis = analyzePdfUrl(pdfUrl);
+                logDebug('URL Analysis:', urlAnalysis);
 
-            if (match) {
-                const fileId = match[1];
-                const directUrl = `https://drive.google.com/uc?export=download&id=${fileId}`;
-                logDebug(`Converted to direct download: ${directUrl}`);
-                return directUrl;
+                // Try all loading strategies
+                updateStatus('Loading PDF (trying multiple methods)...');
+
+                const { pdfDoc: loadedDoc, strategy } = await loadPDFWithAllStrategies(pdfUrl);
+                pdfDoc = loadedDoc;
+
+                // Clear loading message
+                pdfContainer.innerHTML = '';
+
+                // Render all pages
+                updateStatus(`Rendering ${pdfDoc.numPages} pages...`);
+                for (let i = 1; i <= pdfDoc.numPages; i++) {
+                    const page = await pdfDoc.getPage(i);
+                    await renderPage(i, page);
+                }
+
+                // Show success with strategy used
+                const strategyNames = {
+                    'google_drive': 'Google Drive direct link',
+                    'direct': 'direct URL',
+                    'cors_proxy': 'CORS proxy',
+                    'blob': 'blob download'
+                };
+
+                logDebug(`Successfully loaded PDF via ${strategyNames[strategy]}`);
+                updateStatus(`Loaded ${pdfDoc.numPages} pages via ${strategyNames[strategy]}`);
+
+                // Initial broadcast after loading
+                broadcastScrollState();
+
+            } catch (error) {
+                console.error("PDF Loading Error:", error);
+                logDebug(`All PDF loading strategies failed: ${error.message}`);
+
+                // Provide helpful error messages
+                let errorMsg = `Could not load PDF from URL. ${error.message}\n\n`;
+                let suggestions = '';
+
+                if (pdfUrl.includes('google.com')) {
+                    suggestions = 'For Google Drive links:\n' +
+                                 '1. Make sure "Anyone with the link can view" is enabled\n' +
+                                 '2. Try the "Share" button and copy that link\n' +
+                                 '3. Use the direct file link, not a folder link';
+                } else if (pdfUrl.includes('wix.com') || pdfUrl.includes('squarespace.com')) {
+                    suggestions = 'This host may block PDF access. Try:\n' +
+                                 '1. Upload to Google Drive instead\n' +
+                                 '2. Use Dropbox or GitHub for hosting';
+                } else {
+                    suggestions = 'Possible solutions:\n' +
+                                 '1. Upload PDF to Google Drive\n' +
+                                 '2. Ensure PDF is publicly accessible\n' +
+                                 '3. Check CORS permissions\n' +
+                                 '4. Try a different file host';
+                }
+
+                showError('PDF Loading Failed', errorMsg + suggestions);
+                pdfContainer.innerHTML = '<p id="loading-message" class="text-center py-12 text-gray-500">PDF loading failed. See error message above.</p>';
+                pdfDoc = null;
+
+                // Reset session on failure
+                currentSessionId = null;
+                currentPdfUrl = null;
+                document.getElementById('show-qr-btn').classList.add('hidden');
+            }
+        }
+
+        // --- PDF Rendering Functions ---
+        async function renderPage(pageNumber, pdfPage) {
+            const viewport = pdfPage.getViewport({ scale: 1.5 });
+            const canvas = document.createElement('canvas');
+            const context = canvas.getContext('2d');
+            canvas.height = viewport.height;
+            canvas.width = viewport.width;
+            canvas.id = `pdf-page-${pageNumber}`;
+            canvas.setAttribute('data-page', pageNumber);
+
+            await pdfPage.render({ canvasContext: context, viewport: viewport }).promise;
+            pdfContainer.appendChild(canvas);
+        }
+
+        // Start a new session
+        async function startSession(pdfUrl) {
+            if (!rtdb || !userId) {
+                showError('System Error', 'Firebase Realtime Database not initialized or User not authenticated.');
+                return;
             }
 
-            // If it's already a direct link or not Google Drive, return as-is
-            return url;
+            // Clean and validate URL
+            pdfUrl = pdfUrl.trim();
+            if (pdfUrl.startsWith('www.')) {
+                pdfUrl = 'https://' + pdfUrl;
+            }
+            if (!pdfUrl.startsWith('http')) {
+                pdfUrl = 'https://' + pdfUrl;
+            }
+
+            currentPdfUrl = pdfUrl;
+            currentSessionId = generateSessionId();
+
+            logDebug(`Starting session: ${currentSessionId} with PDF: ${pdfUrl}`);
+            updateStatus(`Starting session ${currentSessionId}...`);
+
+            // Create session metadata in Realtime Database
+            const metadataRef = ref(rtdb, `sessions/${currentSessionId}/metadata`);
+            const sessionMetadata = {
+                sm_id: userId,
+                pdf_url: pdfUrl,
+                timestamp: Date.now(),
+                status: 'active'
+            };
+
+            // Initialize view state in Realtime Database
+            const viewStateRef = ref(rtdb, `sessions/${currentSessionId}/viewState`);
+            const initialViewState = {
+                page: 1,
+                y_percent: 0,
+                timestamp: Date.now()
+            };
+
+            try {
+                await set(metadataRef, sessionMetadata);
+                await set(viewStateRef, initialViewState);
+
+                logDebug(`Session created in Firebase: ${currentSessionId}`);
+                updateStatus(`Session ${currentSessionId} created, loading PDF...`);
+
+                // Load and render PDF
+                await loadAndRenderPDF(pdfUrl);
+
+                // Update UI
+                document.getElementById('pdf-container').classList.remove('hidden');
+                document.getElementById('show-qr-btn').classList.remove('hidden');
+
+                // Hide welcome screen if still showing
+                document.getElementById('welcome-screen').classList.add('hidden');
+
+                logDebug(`Session started successfully: ${currentSessionId}`);
+                updateStatus(`Session ${currentSessionId} active - ${pdfDoc ? pdfDoc.numPages : 0} pages`);
+
+            } catch (error) {
+                console.error("Session start failed:", error);
+                logDebug(`Session start failed: ${error.message}`);
+                showError('Session Failed', `Could not start session or write to Realtime Database. Error: ${error.message}`);
+                currentSessionId = null;
+                currentPdfUrl = null;
+                document.getElementById('show-qr-btn').classList.add('hidden');
+            }
         }
+
+        // Reset session
+        function resetSession() {
+            logDebug('Resetting session');
+            updateStatus('Resetting session...');
+            currentSessionId = null;
+            currentPdfUrl = null;
+            pdfDoc = null;
+
+            // Clear PDF container
+            if (pdfContainer) {
+                pdfContainer.innerHTML = '<p id="loading-message" class="text-center py-12 text-gray-500">No PDF loaded.</p>';
+                pdfContainer.classList.add('hidden');
+            }
+
+            // Hide QR button
+            document.getElementById('show-qr-btn').classList.add('hidden');
+
+            // Show welcome screen
+            document.getElementById('welcome-screen').classList.remove('hidden');
+            document.getElementById('status-indicator').classList.add('hidden');
+
+            window.toggleMenu(); // Close menu
+
+            updateStatus('Ready - Session reset');
+            setTimeout(() => {
+                document.getElementById('status-indicator').classList.add('hidden');
+            }, 2000);
+        }
+
+        // Throttle utility function
+        const throttle = (func, limit) => {
+            let inThrottle;
+            return function() {
+                const args = arguments;
+                const context = this;
+                if (!inThrottle) {
+                    func.apply(context, args);
+                    inThrottle = true;
+                    setTimeout(() => inThrottle = false, limit);
+                }
+            }
+        }
+
+        // --- Core Scroll Logic ---
+        function getCurrentScrollState() {
+            const container = pdfContainer;
+            const scrollY = container.scrollTop;
+            const containerHeight = container.clientHeight;
+            let currentCanvas = null;
+
+            // Find the visible canvas page
+            const canvases = container.querySelectorAll('canvas');
+            for (const canvas of canvases) {
+                const canvasTop = canvas.offsetTop;
+                const canvasBottom = canvas.offsetTop + canvas.offsetHeight;
+
+                if (scrollY >= canvasTop && scrollY < canvasBottom) {
+                    currentCanvas = canvas;
+                    break;
+                }
+            }
+
+            if (!currentCanvas) {
+                if (canvases.length > 0 && scrollY < canvases[0].offsetTop + canvases[0].offsetHeight) {
+                    currentCanvas = canvases[0];
+                } else if (canvases.length > 0) {
+                    currentCanvas = canvases[canvases.length - 1];
+                } else {
+                    return null;
+                }
+            }
+
+            const pageNumber = parseInt(currentCanvas.getAttribute('data-page'), 10);
+            const pageHeight = currentCanvas.offsetHeight;
+            const pageTop = currentCanvas.offsetTop;
+            const scrollInPage = scrollY - pageTop;
+
+            let yPercent = Math.min(100, Math.max(0, (scrollInPage / pageHeight) * 100));
+
+            // Handle edge cases
+            if (scrollY + containerHeight >= container.scrollHeight - 5) {
+                yPercent = 100;
+            }
+
+            if (scrollInPage <= 10) {
+                yPercent = 0;
+            }
+
+            return { page: pageNumber, y_percent: parseFloat(yPercent.toFixed(2)) };
+        }
+
+        const broadcastScrollState = throttle(async () => {
+            if (!currentSessionId || !rtdb || !pdfDoc) return;
+
+            const state = getCurrentScrollState();
+            if (!state) return;
+
+            const viewStateRef = ref(rtdb, `sessions/${currentSessionId}/viewState`);
+
+            try {
+                await update(viewStateRef, {
+                    page: state.page,
+                    y_percent: state.y_percent,
+                    timestamp: Date.now()
+                });
+
+                logDebug(`Broadcasting: Page ${state.page} @ ${state.y_percent.toFixed(0)}%`);
+                updateStatus(`Page ${state.page} @ ${state.y_percent.toFixed(0)}%`);
+
+            } catch (e) {
+                console.error("Broadcast failed:", e);
+                logDebug(`Broadcast failed: ${e.message}`);
+            }
+
+        }, 150); // Throttle to 150ms
+
+        // Event handler for scrolling
+        window.handleScroll = () => {
+            if (pdfDoc && currentSessionId) {
+                broadcastScrollState();
+            }
+        };
 
         // Show/hide menu
         window.toggleMenu = () => {
@@ -1904,261 +2340,6 @@
             }
         }
 
-        // --- PDF Rendering Functions ---
-        async function renderPage(pageNumber, pdfPage) {
-            const viewport = pdfPage.getViewport({ scale: 1.5 });
-            const canvas = document.createElement('canvas');
-            const context = canvas.getContext('2d');
-            canvas.height = viewport.height;
-            canvas.width = viewport.width;
-            canvas.id = `pdf-page-${pageNumber}`;
-            canvas.setAttribute('data-page', pageNumber);
-
-            await pdfPage.render({ canvasContext: context, viewport: viewport }).promise;
-            pdfContainer.appendChild(canvas);
-        }
-
-        async function loadAndRenderPDF(pdfUrl) {
-            logDebug(`Loading PDF from: ${pdfUrl}`);
-            updateStatus(`Loading PDF...`);
-
-            // Show PDF container immediately with loading message
-            document.getElementById('pdf-container').classList.remove('hidden');
-            document.getElementById('pdf-container').innerHTML = '<p id="loading-message" class="text-center py-12 text-gray-500">Loading PDF, please wait...</p>';
-
-            try {
-                // Convert Google Drive link if needed
-                const finalPdfUrl = convertGoogleDriveLink(pdfUrl);
-                logDebug(`Final PDF URL: ${finalPdfUrl}`);
-
-                const pdf = await pdfjsLib.getDocument({
-                    url: finalPdfUrl,
-                    withCredentials: false
-                }).promise;
-
-                pdfDoc = pdf;
-                pdfContainer.innerHTML = ''; // Clear loading message
-
-                // Render all pages
-                updateStatus(`Rendering ${pdf.numPages} pages...`);
-                for (let i = 1; i <= pdf.numPages; i++) {
-                    const page = await pdf.getPage(i);
-                    await renderPage(i, page);
-                }
-
-                logDebug(`Successfully loaded PDF with ${pdf.numPages} pages`);
-                updateStatus(`Loaded ${pdf.numPages} pages - Session: ${currentSessionId}`);
-
-                // Initial broadcast after loading
-                broadcastScrollState();
-
-            } catch (error) {
-                console.error("PDF Loading Error:", error);
-                logDebug(`PDF Loading Error: ${error.message}`);
-                let errorMsg = `Could not load PDF from URL. ${error.message}`;
-
-                // Provide more helpful error messages
-                if (error.message.includes('CORS')) {
-                    errorMsg += '\n\nCORS Error: The PDF server needs to allow cross-origin requests.';
-                } else if (error.message.includes('404') || error.message.includes('Not Found')) {
-                    errorMsg += '\n\nFile not found. Check the URL.';
-                } else if (error.message.includes('Invalid PDF')) {
-                    errorMsg += '\n\nThis might not be a valid PDF file.';
-                }
-
-                showError('PDF Loading Error', errorMsg);
-                pdfContainer.innerHTML = '<p id="loading-message" class="text-center py-12 text-gray-500">PDF loading failed.</p>';
-                pdfDoc = null;
-                // Reset session
-                currentSessionId = null;
-                currentPdfUrl = null;
-                document.getElementById('show-qr-btn').classList.add('hidden');
-            }
-        }
-
-        // Start a new session
-        async function startSession(pdfUrl) {
-            if (!rtdb || !userId) {
-                showError('System Error', 'Firebase Realtime Database not initialized or User not authenticated.');
-                return;
-            }
-
-            currentPdfUrl = pdfUrl;
-            currentSessionId = generateSessionId();
-
-            logDebug(`Starting session: ${currentSessionId} with PDF: ${pdfUrl}`);
-            updateStatus(`Starting session ${currentSessionId}...`);
-
-            // Create session metadata in Realtime Database
-            const metadataRef = ref(rtdb, `sessions/${currentSessionId}/metadata`);
-            const sessionMetadata = {
-                sm_id: userId,
-                pdf_url: pdfUrl,
-                timestamp: Date.now(),
-                status: 'active'
-            };
-
-            // Initialize view state in Realtime Database
-            const viewStateRef = ref(rtdb, `sessions/${currentSessionId}/viewState`);
-            const initialViewState = {
-                page: 1,
-                y_percent: 0,
-                timestamp: Date.now()
-            };
-
-            try {
-                await set(metadataRef, sessionMetadata);
-                await set(viewStateRef, initialViewState);
-
-                logDebug(`Session created in Firebase: ${currentSessionId}`);
-                updateStatus(`Session ${currentSessionId} created, loading PDF...`);
-
-                // Load and render PDF
-                await loadAndRenderPDF(pdfUrl);
-
-                // Update UI
-                document.getElementById('pdf-container').classList.remove('hidden');
-                document.getElementById('show-qr-btn').classList.remove('hidden');
-
-                // Hide welcome screen if still showing
-                document.getElementById('welcome-screen').classList.add('hidden');
-
-                logDebug(`Session started successfully: ${currentSessionId}`);
-                updateStatus(`Session ${currentSessionId} active - ${pdfDoc ? pdfDoc.numPages : 0} pages`);
-
-            } catch (error) {
-                console.error("Session start failed:", error);
-                logDebug(`Session start failed: ${error.message}`);
-                showError('Session Failed', `Could not start session or write to Realtime Database. Error: ${error.message}`);
-                currentSessionId = null;
-                currentPdfUrl = null;
-                document.getElementById('show-qr-btn').classList.add('hidden');
-            }
-        }
-
-        // Reset session
-        function resetSession() {
-            logDebug('Resetting session');
-            updateStatus('Resetting session...');
-            currentSessionId = null;
-            currentPdfUrl = null;
-            pdfDoc = null;
-
-            // Clear PDF container
-            if (pdfContainer) {
-                pdfContainer.innerHTML = '<p id="loading-message" class="text-center py-12 text-gray-500">No PDF loaded.</p>';
-                pdfContainer.classList.add('hidden');
-            }
-
-            // Hide QR button
-            document.getElementById('show-qr-btn').classList.add('hidden');
-
-            // Show welcome screen
-            document.getElementById('welcome-screen').classList.remove('hidden');
-            document.getElementById('status-indicator').classList.add('hidden');
-
-            window.toggleMenu(); // Close menu
-
-            updateStatus('Ready - Session reset');
-            setTimeout(() => {
-                document.getElementById('status-indicator').classList.add('hidden');
-            }, 2000);
-        }
-
-        // Throttle utility function
-        const throttle = (func, limit) => {
-            let inThrottle;
-            return function() {
-                const args = arguments;
-                const context = this;
-                if (!inThrottle) {
-                    func.apply(context, args);
-                    inThrottle = true;
-                    setTimeout(() => inThrottle = false, limit);
-                }
-            }
-        }
-
-        // --- Core Scroll Logic ---
-        function getCurrentScrollState() {
-            const container = pdfContainer;
-            const scrollY = container.scrollTop;
-            const containerHeight = container.clientHeight;
-            let currentCanvas = null;
-
-            // Find the visible canvas page
-            const canvases = container.querySelectorAll('canvas');
-            for (const canvas of canvases) {
-                const canvasTop = canvas.offsetTop;
-                const canvasBottom = canvas.offsetTop + canvas.offsetHeight;
-
-                if (scrollY >= canvasTop && scrollY < canvasBottom) {
-                    currentCanvas = canvas;
-                    break;
-                }
-            }
-
-            if (!currentCanvas) {
-                if (canvases.length > 0 && scrollY < canvases[0].offsetTop + canvases[0].offsetHeight) {
-                    currentCanvas = canvases[0];
-                } else if (canvases.length > 0) {
-                    currentCanvas = canvases[canvases.length - 1];
-                } else {
-                    return null;
-                }
-            }
-
-            const pageNumber = parseInt(currentCanvas.getAttribute('data-page'), 10);
-            const pageHeight = currentCanvas.offsetHeight;
-            const pageTop = currentCanvas.offsetTop;
-            const scrollInPage = scrollY - pageTop;
-
-            let yPercent = Math.min(100, Math.max(0, (scrollInPage / pageHeight) * 100));
-
-            // Handle edge cases
-            if (scrollY + containerHeight >= container.scrollHeight - 5) {
-                yPercent = 100;
-            }
-
-            if (scrollInPage <= 10) {
-                yPercent = 0;
-            }
-
-            return { page: pageNumber, y_percent: parseFloat(yPercent.toFixed(2)) };
-        }
-
-        const broadcastScrollState = throttle(async () => {
-            if (!currentSessionId || !rtdb || !pdfDoc) return;
-
-            const state = getCurrentScrollState();
-            if (!state) return;
-
-            const viewStateRef = ref(rtdb, `sessions/${currentSessionId}/viewState`);
-
-            try {
-                await update(viewStateRef, {
-                    page: state.page,
-                    y_percent: state.y_percent,
-                    timestamp: Date.now()
-                });
-
-                logDebug(`Broadcasting: Page ${state.page} @ ${state.y_percent.toFixed(0)}%`);
-                updateStatus(`Page ${state.page} @ ${state.y_percent.toFixed(0)}%`);
-
-            } catch (e) {
-                console.error("Broadcast failed:", e);
-                logDebug(`Broadcast failed: ${e.message}`);
-            }
-
-        }, 150); // Throttle to 150ms
-
-        // Event handler for scrolling
-        window.handleScroll = () => {
-            if (pdfDoc && currentSessionId) {
-                broadcastScrollState();
-            }
-        };
-
         // --- Initial Setup ---
         document.addEventListener('DOMContentLoaded', () => {
             pdfContainer = document.getElementById('pdf-container');
@@ -2203,11 +2384,24 @@
 
             // PDF URL modal buttons
             document.getElementById('pdf-url-ok').onclick = async function() {
-                const pdfUrl = document.getElementById('pdf-url-input').value.trim();
+                let pdfUrl = document.getElementById('pdf-url-input').value.trim();
+
                 if (!pdfUrl) {
                     showError('Input Required', 'Please enter a PDF URL.');
                     return;
                 }
+
+                // Basic URL cleanup
+                if (pdfUrl.startsWith('www.')) {
+                    pdfUrl = 'https://' + pdfUrl;
+                }
+                if (!pdfUrl.startsWith('http')) {
+                    pdfUrl = 'https://' + pdfUrl;
+                }
+
+                // Show what we're trying
+                const displayUrl = pdfUrl.length > 60 ? pdfUrl.substring(0, 60) + '...' : pdfUrl;
+                updateStatus(`Loading: ${displayUrl}`);
 
                 closePdfUrlModal();
                 await startSession(pdfUrl);
